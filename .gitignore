@@ -1,0 +1,18 @@
+# Build outputs
+**/bin/
+**/bin-test/
+
+# Java/Eclipse artifacts
+*.class
+*.log
+.DS_Store
+Thumbs.db
+
+# Common build dirs (defensive)
+target/
+build/
+
+# Node (if present in subprojects)
+node_modules/
+
+

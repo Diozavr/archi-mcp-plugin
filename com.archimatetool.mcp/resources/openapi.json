@@ -1,0 +1,634 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Archi MCP API",
+    "version": "0.1.0"
+  },
+  "servers": [
+    { "url": "http://127.0.0.1:8765" }
+  ],
+  "security": [
+    { "BearerAuth": [] }
+  ],
+  "paths": {
+    "/status": {
+      "get": {
+        "summary": "Service status",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "service": { "type": "string" },
+                    "version": { "type": "string" }
+                  },
+                  "required": ["ok"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "summary": "OpenAPI spec",
+        "responses": {
+          "200": { "description": "Spec" }
+        }
+      }
+    },
+
+    "/types": {
+      "get": {
+        "summary": "List supported element/relation/view types",
+        "responses": {
+          "200": {
+            "description": "Types",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "elementTypes": { "type": "array", "items": { "type": "string" } },
+                    "relationTypes": { "type": "array", "items": { "type": "string" } },
+                    "viewTypes": { "type": "array", "items": { "type": "string" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/folders": {
+      "get": {
+        "summary": "Get model folder tree",
+        "parameters": [
+          { "name": "modelId", "in": "query", "schema": { "type": "string" }, "required": false }
+        ],
+        "responses": {
+          "200": {
+            "description": "Folder tree",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Folder" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/folder/ensure": {
+      "post": {
+        "summary": "Ensure folder exists by path",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "modelId": { "type": "string" },
+                  "path": { "type": "string", "description": "Path like 'Business/Actors'" }
+                },
+                "required": ["path"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Folder",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Folder" } } }
+          }
+        }
+      }
+    },
+
+    "/search": {
+      "get": {
+        "summary": "Search elements, relations and views (recursive)",
+        "description": "Substring search over available fields. Matching is non-strict (OR): name is always searched; documentation is searched when includeDocs=true; properties (key and value) are searched when includeProps=true. When property=key=value filters are provided, they are applied as strict AND filters in addition to text matching.",
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string" }, "required": false },
+          { "name": "kind", "in": "query", "schema": { "type": "string", "enum": ["element", "relation", "view"] }, "required": false },
+          { "name": "elementType", "in": "query", "schema": { "type": "string" }, "required": false },
+          { "name": "relationType", "in": "query", "schema": { "type": "string" }, "required": false },
+          { "name": "modelId", "in": "query", "schema": { "type": "string" }, "required": false },
+          { "name": "property", "in": "query", "schema": { "type": "array", "items": { "type": "string", "example": "key=value" } }, "style": "form", "explode": true, "required": false },
+          { "name": "includeDocs", "in": "query", "schema": { "type": "boolean", "default": false }, "required": false, "description": "When true, include element/relation documentation in text matching (OR with name)." },
+          { "name": "includeProps", "in": "query", "schema": { "type": "boolean", "default": false }, "required": false, "description": "When true, include properties (key and value) in text matching (OR with name/doc)." },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 1000, "default": 100 }, "required": false },
+          { "name": "offset", "in": "query", "schema": { "type": "integer", "minimum": 0, "default": 0 }, "required": false },
+          { "name": "debug", "in": "query", "schema": { "type": "boolean", "default": false }, "required": false, "description": "When true, include a 'debug' block in the response with scanned/matched counters and sample matches." },
+          { "name": "log", "in": "query", "schema": { "type": "string", "enum": ["stdout", "script"], "default": "stdout" }, "required": false, "description": "Optional log target for debug traces. If unavailable, falls back to stdout." }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SearchResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/elements": {
+      "post": {
+        "summary": "Create element",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "modelId": { "type": "string" },
+                  "type": { "type": "string" },
+                  "name": { "type": "string" },
+                  "folderId": { "type": "string" },
+                  "properties": { "type": "object", "additionalProperties": { "type": "string" } },
+                  "documentation": { "type": "string" }
+                },
+                "required": ["type", "name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Element" } } } }
+        }
+      }
+    },
+    "/elements/{id}": {
+      "get": {
+        "summary": "Get element",
+        "description": "Optionally enrich with related relations using 'include=relations' and inline endpoints via 'includeElements=true'.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "include", "in": "query", "required": false, "schema": { "type": "string", "example": "relations" } },
+          { "name": "includeElements", "in": "query", "required": false, "schema": { "type": "boolean", "default": false } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Element (optionally enriched)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/Element" },
+                    { "$ref": "#/components/schemas/ElementWithRelations" }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update element",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ElementPatch" } } } },
+        "responses": { "200": { "description": "Updated", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Element" } } } } }
+      },
+      "delete": {
+        "summary": "Delete element",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "responses": { "204": { "description": "Deleted" } }
+      }
+    },
+
+    "/elements/{id}/relations": {
+      "get": {
+        "summary": "List relations attached to an element",
+        "description": "Returns relations where the given element is source and/or target. Use 'direction' to filter, and 'includeElements' to inline endpoint element DTOs.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "direction", "in": "query", "required": false, "schema": { "type": "string", "enum": ["in","out","both"], "default": "both" } },
+          { "name": "includeElements", "in": "query", "required": false, "schema": { "type": "boolean", "default": false } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Relations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total": { "type": "integer" },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          { "$ref": "#/components/schemas/Relation" },
+                          { "$ref": "#/components/schemas/ElementRelationWithEndpoints" }
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["total","items"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/relations": {
+      "post": {
+        "summary": "Create relation",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "modelId": { "type": "string" },
+                  "type": { "type": "string" },
+                  "sourceId": { "type": "string" },
+                  "targetId": { "type": "string" },
+                  "name": { "type": "string" },
+                  "properties": { "type": "object", "additionalProperties": { "type": "string" } },
+                  "documentation": { "type": "string" }
+                },
+                "required": ["type", "sourceId", "targetId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Relation" } } } }
+        }
+      }
+    },
+    "/relations/{id}": {
+      "get": {
+        "summary": "Get relation",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "responses": { "200": { "description": "Relation", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Relation" } } } } }
+      },
+      "patch": {
+        "summary": "Update relation",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RelationPatch" } } } },
+        "responses": { "200": { "description": "Updated", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Relation" } } } } }
+      },
+      "delete": {
+        "summary": "Delete relation",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "responses": { "204": { "description": "Deleted" } }
+      }
+    },
+
+    "/views": {
+      "get": {
+        "summary": "List views",
+        "parameters": [ { "name": "modelId", "in": "query", "required": false, "schema": { "type": "string" } } ],
+        "responses": { "200": { "description": "Views", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/View" } } } } } }
+      },
+      "post": {
+        "summary": "Create view",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "modelId": { "type": "string" },
+                  "type": { "type": "string" },
+                  "name": { "type": "string" }
+                },
+                "required": ["type", "name"]
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/View" } } } } }
+      }
+    },
+    "/views/{id}": {
+      "get": {
+        "summary": "Get view",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "responses": { "200": { "description": "View", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/View" } } } } }
+      },
+      "delete": {
+        "summary": "Delete view",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "responses": { "204": { "description": "Deleted" } }
+      }
+    },
+    "/views/{id}/content": {
+      "get": {
+        "summary": "Get view content (objects, connections, layout)",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }, { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 5000 }, "required": false }, { "name": "offset", "in": "query", "schema": { "type": "integer", "minimum": 0 }, "required": false } ],
+        "responses": { "200": { "description": "Content", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ViewContent" } } } } }
+      }
+    },
+    "/views/{id}/add-element": {
+      "post": {
+        "summary": "Add element to view",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "elementId": { "type": "string" }, "bounds": { "$ref": "#/components/schemas/Bounds" }, "style": { "type": "object", "additionalProperties": { "type": "string" } } }, "required": ["elementId", "bounds"] } } } },
+        "responses": { "200": { "description": "Added", "content": { "application/json": { "schema": { "type": "object", "properties": { "objectId": { "type": "string" } }, "required": ["objectId"] } } } } }
+      }
+    },
+    "/views/{id}/add-relation": {
+      "post": {
+        "summary": "Add relation to view",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "relationId": { "type": "string", "description": "Existing model relation ID (IArchimateRelationship)." },
+                  "sourceObjectId": { "type": "string", "description": "Diagram object ID for the relation source endpoint (optional)." },
+                  "targetObjectId": { "type": "string", "description": "Diagram object ID for the relation target endpoint (optional)." },
+                  "policy": { "type": "string", "enum": ["auto", "fail"], "default": "auto", "description": "When objectId is not provided, 'auto' will pick the only occurrence per side if unambiguous; 'fail' will return an error." }
+                },
+                "required": ["relationId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Connection" } } } },
+          "400": { "description": "Bad Request (missing fields or invalid policy)" },
+          "404": { "description": "Not Found (viewId/relationId/objectId)" },
+          "409": { "description": "Conflict (no active model or ambiguous auto selection)" },
+          "422": { "description": "Unprocessable Entity (objectIds do not match relation endpoints or do not belong to the view)" }
+        }
+      }
+    },
+    "/views/{id}/objects/{objectId}/bounds": {
+      "patch": {
+        "summary": "Update view object bounds",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }, { "name": "objectId", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Bounds" } } } },
+        "responses": { "200": { "description": "Updated", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ViewObject" } } } } }
+      }
+    },
+    "/views/{id}/objects/{objectId}": {
+      "delete": {
+        "summary": "Remove object from view (not deleting element/relation)",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }, { "name": "objectId", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "responses": { "204": { "description": "Removed" } }
+      }
+    },
+
+    "/model/save": {
+      "post": {
+        "summary": "Save model",
+        "requestBody": { "required": false, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SaveRequest" } } } },
+        "responses": { "200": { "description": "Saved", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SaveResponse" } } } } }
+      }
+    },
+
+    "/script/engines": {
+      "get": {
+        "summary": "List available script engines (temporarily disabled)",
+        "responses": { "501": { "description": "Not Implemented" } }
+      }
+    },
+    "/script/run": { "post": { "summary": "Run a script (temporarily disabled)", "responses": { "501": { "description": "Not Implemented" } } } }
+  },
+
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Folder": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "path": { "type": "string" },
+          "children": { "type": "array", "items": { "$ref": "#/components/schemas/Folder" } }
+        },
+        "required": ["id", "name"]
+      },
+      "Element": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "modelId": { "type": "string" },
+          "type": { "type": "string" },
+          "name": { "type": "string" },
+          "folderId": { "type": "string" },
+          "properties": { "type": "object", "additionalProperties": { "type": "string" } },
+          "documentation": { "type": "string" }
+        },
+        "required": ["id", "type", "name"]
+      },
+      "ElementWithRelations": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Element" },
+          {
+            "type": "object",
+            "properties": {
+              "relations": {
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/Relation" },
+                    { "$ref": "#/components/schemas/ElementRelationWithEndpoints" }
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      },
+      "ElementPatch": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "type": { "type": "string" },
+          "folderId": { "type": "string" },
+          "properties": { "type": "object", "additionalProperties": { "type": "string" } },
+          "documentation": { "type": "string" }
+        }
+      },
+      "Relation": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "modelId": { "type": "string" },
+          "type": { "type": "string" },
+          "name": { "type": "string" },
+          "sourceId": { "type": "string" },
+          "targetId": { "type": "string" },
+          "properties": { "type": "object", "additionalProperties": { "type": "string" } },
+          "documentation": { "type": "string" }
+        },
+        "required": ["id", "type", "sourceId", "targetId"]
+      },
+      "RelationPatch": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "type": { "type": "string" },
+          "properties": { "type": "object", "additionalProperties": { "type": "string" } },
+          "documentation": { "type": "string" }
+        }
+      },
+      "View": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "modelId": { "type": "string" },
+          "type": { "type": "string" },
+          "name": { "type": "string" }
+        },
+        "required": ["id", "type", "name"]
+      },
+      "ViewContent": {
+        "type": "object",
+        "properties": {
+          "width": { "type": "integer" },
+          "height": { "type": "integer" },
+          "objects": { "type": "array", "items": { "$ref": "#/components/schemas/ViewObject" } },
+          "connections": { "type": "array", "items": { "$ref": "#/components/schemas/Connection" } }
+        }
+      },
+      "ViewObject": {
+        "type": "object",
+        "properties": {
+          "objectId": { "type": "string" },
+          "type": { "type": "string" },
+          "elementId": { "type": "string", "nullable": true },
+          "relationId": { "type": "string", "nullable": true },
+          "bounds": { "$ref": "#/components/schemas/Bounds" },
+          "style": { "type": "object", "additionalProperties": { "type": "string" } }
+        },
+        "required": ["objectId", "type", "bounds"]
+      },
+      "Connection": {
+        "type": "object",
+        "properties": {
+          "objectId": { "type": "string" },
+          "relationId": { "type": "string" },
+          "sourceObjectId": { "type": "string" },
+          "targetObjectId": { "type": "string" },
+          "bendpoints": { "type": "array", "items": { "$ref": "#/components/schemas/Point" } }
+        },
+        "required": ["objectId", "relationId", "sourceObjectId", "targetObjectId"]
+      },
+      "Bounds": {
+        "type": "object",
+        "properties": {
+          "x": { "type": "integer" },
+          "y": { "type": "integer" },
+          "w": { "type": "integer" },
+          "h": { "type": "integer" }
+        },
+        "required": ["x", "y", "w", "h"]
+      },
+      "Point": {
+        "type": "object",
+        "properties": {
+          "x": { "type": "integer" },
+          "y": { "type": "integer" }
+        },
+        "required": ["x", "y"]
+      },
+      "SearchItem": {
+        "type": "object",
+        "properties": {
+          "kind": { "type": "string", "enum": ["element", "relation", "view"] },
+          "element": { "$ref": "#/components/schemas/Element" },
+          "relation": { "$ref": "#/components/schemas/Relation" },
+          "view": { "$ref": "#/components/schemas/View" }
+        }
+      },
+      "SearchResponse": {
+        "type": "object",
+        "properties": {
+          "total": { "type": "integer" },
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/SearchItem" } },
+          "debug": {
+            "type": "object",
+            "description": "Present when debug=true. Diagnostic counters and samples.",
+            "properties": {
+              "query": { "type": "string" },
+              "kind": { "type": "string", "nullable": true },
+              "includeDocs": { "type": "boolean" },
+              "includeProps": { "type": "boolean" },
+              "limit": { "type": "integer" },
+              "offset": { "type": "integer" },
+              "scanned": {
+                "type": "object",
+                "properties": {
+                  "folders": { "type": "integer" },
+                  "elements": { "type": "integer" },
+                  "relations": { "type": "integer" },
+                  "views": { "type": "integer" }
+                }
+              },
+              "matched": {
+                "type": "object",
+                "properties": {
+                  "elements": { "type": "integer" },
+                  "relations": { "type": "integer" },
+                  "views": { "type": "integer" },
+                  "total": { "type": "integer" }
+                }
+              },
+              "samples": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "required": ["total", "items"]
+      },
+      "SaveRequest": {
+        "type": "object",
+        "properties": {
+          "modelId": { "type": "string" },
+          "createBackup": { "type": "boolean", "default": true }
+        }
+      },
+      "SaveResponse": {
+        "type": "object",
+        "properties": {
+          "saved": { "type": "boolean" },
+          "modelId": { "type": "string" },
+          "path": { "type": "string" }
+        },
+        "required": ["saved"]
+      },
+      "ElementRelationWithEndpoints": {
+        "type": "object",
+        "properties": {
+          "relation": { "$ref": "#/components/schemas/Relation" },
+          "source": { "$ref": "#/components/schemas/Element" },
+          "target": { "$ref": "#/components/schemas/Element" }
+        },
+        "required": ["relation"]
+      }
+    }
+  }
+}
+

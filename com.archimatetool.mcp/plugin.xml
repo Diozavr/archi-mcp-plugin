@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <!-- Minimal plugin; server starts in Bundle Activator. UI toggles/preferences can be added later. -->
+
+   <!-- Ensure activation at workbench startup so the server starts automatically -->
+   <extension
+         point="org.eclipse.ui.startup">
+      <startup
+            class="com.archimatetool.mcp.Startup">
+      </startup>
+   </extension>
+
+   <extension
+         point="org.eclipse.ui.preferencePages">
+      <page
+            class="com.archimatetool.mcp.preferences.MCPPreferencePage"
+            id="com.archimatetool.mcp.preferences"
+            name="MCP">
+      </page>
+   </extension>
+
+</plugin>
