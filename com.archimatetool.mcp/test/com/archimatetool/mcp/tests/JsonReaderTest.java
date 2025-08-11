@@ -43,6 +43,28 @@ public class JsonReaderTest {
         JsonReader jr = JsonReader.fromString("{\"x\": 123"); // malformed
         assertNull(jr.optInt("x"));
     }
+
+    @Test
+    public void testEmptyBodyAndInvalidTypes() {
+        JsonReader jr = JsonReader.fromString("");
+        assertNull(jr.optInt("x"));
+        jr = JsonReader.fromString("{\"x\":{}} ");
+        assertNull(jr.optInt("x"));
+    }
+
+    @Test
+    public void testBooleanParsingAndDefaults() {
+        JsonReader jr = JsonReader.fromString("{\"a\":\"true\",\"b\":\"1\",\"c\":\"yes\",\"d\":\"no\"}");
+        assertTrue(jr.optBool("a"));
+        assertTrue(jr.optBool("b"));
+        assertTrue(jr.optBool("c"));
+        assertNull(jr.optBool("d"));
+
+        assertEquals(5, jr.optInt("missing", 5));
+        assertTrue(jr.optBool("missingBool", true));
+        assertEquals("def", jr.optString("missingStr", "def"));
+        assertEquals(7, jr.optIntWithin("missingObj", "x", 7));
+    }
 }
 
 

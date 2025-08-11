@@ -67,6 +67,11 @@ public final class JsonReader {
         return v.toString();
     }
 
+    public String optString(String key, String defaultValue) {
+        String v = optString(key);
+        return v != null ? v : defaultValue;
+    }
+
     public Integer optInt(String key) {
         if (key == null) return null;
         JsonNode v = root.get(key);
@@ -76,6 +81,11 @@ public final class JsonReader {
             try { return Integer.valueOf(v.asText()); } catch (Exception ignore) {}
         }
         return null;
+    }
+
+    public int optInt(String key, int defaultValue) {
+        Integer v = optInt(key);
+        return v != null ? v.intValue() : defaultValue;
     }
 
     public Boolean optBool(String key) {
@@ -88,6 +98,11 @@ public final class JsonReader {
             return "true".equalsIgnoreCase(s) || "1".equals(s) || "yes".equalsIgnoreCase(s);
         }
         return null;
+    }
+
+    public boolean optBool(String key, boolean defaultValue) {
+        Boolean v = optBool(key);
+        return v != null ? v.booleanValue() : defaultValue;
     }
 
     public JsonNode optObject(String key) {
@@ -108,5 +123,10 @@ public final class JsonReader {
             try { return Integer.valueOf(v.asText()); } catch (Exception ignore) {}
         }
         return null;
+    }
+
+    public int optIntWithin(String objectName, String key, int defaultValue) {
+        Integer v = optIntWithin(objectName, key);
+        return v != null ? v.intValue() : defaultValue;
     }
 }

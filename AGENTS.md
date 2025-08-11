@@ -40,3 +40,8 @@
 - `GET /status` → `{"ok":true,...}`
 - `POST /elements` с типом в kebab-case создаёт элемент.
 - `POST /model/save` → `{"saved":true,...}`
+- Расширенный smoke‑тест: `com.archimatetool.mcp/test/test_smoke.sh` покрывает маршруты
+  `/openapi.json`, `/types`, `/folders`, создание видов/элементов/отношений,
+  операции над объектами вида, `/views/{id}/image`, `/search`, сценарии ошибок и уборку.
+  Перед запуском откройте тестовую модель `testdata/Archisurance.archimate` в Archi или
+  обеспечьте активную модель.
