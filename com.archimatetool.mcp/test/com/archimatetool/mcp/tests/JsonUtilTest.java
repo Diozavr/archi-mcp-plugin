@@ -41,6 +41,12 @@ public class JsonUtilTest {
         assertTrue(json.contains("\\t"));
     }
 
+    @Test
+    public void testUnicode() throws Exception {
+        String json = toJson(Map.of("s", "Привет"));
+        assertTrue(json.contains("Привет"));
+    }
+
     private static String toJson(Object body) throws Exception {
         return new String(JacksonJson.writeBytes(body), StandardCharsets.UTF_8);
     }

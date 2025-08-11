@@ -22,6 +22,12 @@ public class StringCaseUtilTest {
         assertEquals("AB", StringCaseUtil.toCamelCase("a-b"));
         assertEquals("A", StringCaseUtil.toCamelCase("a-"));
     }
+
+    @Test
+    public void testCustomTypes() {
+        assertEquals("MyCustomType", StringCaseUtil.toCamelCase("my-custom-type"));
+        assertEquals("Unknown", StringCaseUtil.toCamelCase("unknown"));
+    }
 }
 
 
