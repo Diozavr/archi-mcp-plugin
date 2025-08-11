@@ -227,6 +227,73 @@ public class ModelApi {
         return out[0];
     }
 
+    public static byte[] renderViewToSVG(IDiagramModel view, float scale, String bg, int margin) {
+        final byte[][] out = new byte[1][1];
+        Display.getDefault().syncExec(() -> {
+            try {
+                // Archi 5 uses the export plugin for SVG output
+                com.archimatetool.export.svg.SVGExportProvider exporter =
+                        new com.archimatetool.export.svg.SVGExportProvider();
+                String svg = exporter.getSVGString(view, true);
+                if (svg == null) { out[0] = new byte[0]; return; }
+
+                try {
+                    javax.xml.parsers.DocumentBuilderFactory dbf = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+                    dbf.setNamespaceAware(true);
+                    org.w3c.dom.Document doc = dbf.newDocumentBuilder().parse(
+                            new org.xml.sax.InputSource(new java.io.StringReader(svg)));
+                    org.w3c.dom.Element root = doc.getDocumentElement();
+
+                    String viewBox = root.getAttribute("viewBox");
+                    float vbX = 0, vbY = 0, vbW = 0, vbH = 0;
+                    if (viewBox != null && !viewBox.isEmpty()) {
+                        String[] parts = viewBox.trim().split("\\s+");
+                        if (parts.length == 4) {
+                            vbX = Float.parseFloat(parts[0]);
+                            vbY = Float.parseFloat(parts[1]);
+                            vbW = Float.parseFloat(parts[2]);
+                            vbH = Float.parseFloat(parts[3]);
+                        }
+                    }
+                    if (vbW == 0 || vbH == 0) {
+                        vbW = Float.parseFloat(root.getAttribute("width"));
+                        vbH = Float.parseFloat(root.getAttribute("height"));
+                    }
+
+                    // apply margin
+                    vbX -= margin;
+                    vbY -= margin;
+                    vbW += margin * 2;
+                    vbH += margin * 2;
+
+                    // apply scale by adjusting width/height
+                    root.setAttribute("viewBox", vbX + " " + vbY + " " + vbW + " " + vbH);
+                    root.setAttribute("width", Float.toString(vbW * scale));
+                    root.setAttribute("height", Float.toString(vbH * scale));
+
+                    // background color if requested
+                    if (bg != null && !"transparent".equalsIgnoreCase(bg)) {
+                        root.setAttribute("style", "background-color:" + bg);
+                    }
+
+                    javax.xml.transform.Transformer tf = javax.xml.transform.TransformerFactory.newInstance().newTransformer();
+                    tf.setOutputProperty(javax.xml.transform.OutputKeys.ENCODING, "UTF-8");
+                    java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                    tf.transform(new javax.xml.transform.dom.DOMSource(doc),
+                            new javax.xml.transform.stream.StreamResult(baos));
+                    out[0] = baos.toByteArray();
+                } catch (Exception e) {
+                    // fallback to the original string
+                    out[0] = svg.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                }
+            } catch (Throwable t) {
+                out[0] = new byte[0];
+            }
+        });
+        return out[0];
+    }
+
+
     public static IDiagramModelObject findDiagramObjectById(IDiagramModel view, String objectId) {
         if (objectId == null) return null;
         List<IDiagramModelObject> all = new ArrayList<>();

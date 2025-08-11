@@ -3,6 +3,7 @@ package com.archimatetool.mcp.http.handlers;
 import java.io.IOException;
 import java.util.Map;
 
+import com.archimatetool.mcp.http.QueryParams;
 import com.archimatetool.mcp.http.ResponseUtil;
 import com.archimatetool.mcp.json.JsonReader;
 import com.archimatetool.mcp.server.ModelApi;
@@ -50,24 +51,22 @@ public class ViewItemHttpHandler implements HttpHandler {
         if ("image".equals(subpath) && "GET".equalsIgnoreCase(exchange.getRequestMethod())) {
             model = ServiceRegistry.activeModel().getActiveModel();
             if (model == null) { ResponseUtil.conflictNoActiveModel(exchange); return; }
-            // Query params: format=png|svg (only png for now), scale, dpi, bg, margin
-            String q = exchange.getRequestURI().getQuery();
-            String format = "png";
-            float scale = 1.0f;
-            Integer dpi = null;
-            String bg = "transparent";
-            int margin = 0;
-            if (q != null) {
-                for (String p: q.split("&")) {
-                    int i=p.indexOf('='); if (i<=0) continue; String k=p.substring(0,i); String v=p.substring(i+1);
-                    if ("format".equals(k)) format = v;
-                    else if ("scale".equals(k)) { try { scale = Float.parseFloat(v); } catch (Exception ignore) {} }
-                    else if ("dpi".equals(k)) { try { dpi = Integer.valueOf(Integer.parseInt(v)); } catch (Exception ignore) {} }
-                    else if ("bg".equals(k)) { bg = v; }
-                    else if ("margin".equals(k)) { try { margin = Integer.parseInt(v); } catch (Exception ignore) {} }
-                }
+            QueryParams qp = QueryParams.from(exchange);
+            String format = qp.first("format");
+            if (format == null) format = "png";
+            float scale = qp.getFloat("scale", 1.0f);
+            Integer dpi = qp.getInt("dpi", (Integer) null);
+            String bg = qp.first("bg");
+            if (bg == null) bg = "transparent";
+            int margin = qp.getInt("margin", 0);
+            if ("svg".equalsIgnoreCase(format)) {
+                byte[] svg = ModelApi.renderViewToSVG(view, scale, bg, margin);
+                if (svg == null || svg.length == 0) { ResponseUtil.badRequest(exchange, "render failed"); return; }
+                exchange.getResponseHeaders().set("Content-Type", "image/svg+xml; charset=utf-8");
+                exchange.sendResponseHeaders(200, svg.length);
+                try (java.io.OutputStream os = exchange.getResponseBody()) { os.write(svg); }
+                return;
             }
-            if (!"png".equalsIgnoreCase(format)) { ResponseUtil.badRequest(exchange, "only png is supported for now"); return; }
             java.awt.Color bgc = null;
             if (bg != null && !"transparent".equalsIgnoreCase(bg)) {
                 try { if (bg.startsWith("%23")) bg = bg.replace("%23", "#"); } catch (Exception ignore) {}
