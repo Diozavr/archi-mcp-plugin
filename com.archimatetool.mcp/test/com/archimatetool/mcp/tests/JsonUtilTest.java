@@ -7,13 +7,15 @@ import java.util.Map;
 
 import org.junit.Test;
 
-import com.archimatetool.mcp.server.JsonUtil;
+import java.nio.charset.StandardCharsets;
+
+import com.archimatetool.mcp.server.JacksonJson;
 
 public class JsonUtilTest {
 
     @Test
     public void testSerializeSimple() throws Exception {
-        String json = invokeToJson(Map.of("ok", true, "n", 1, "s", "x"));
+        String json = toJson(Map.of("ok", true, "n", 1, "s", "x"));
         assertTrue(json.contains("\"ok\":true"));
         assertTrue(json.contains("\"n\":1"));
         assertTrue(json.contains("\"s\":\"x\""));
@@ -21,7 +23,7 @@ public class JsonUtilTest {
 
     @Test
     public void testSerializeNested() throws Exception {
-        String json = invokeToJson(Map.of(
+        String json = toJson(Map.of(
             "arr", List.of(1, 2, 3),
             "obj", Map.of("a", "b")
         ));
@@ -31,7 +33,7 @@ public class JsonUtilTest {
 
     @Test
     public void testEscape() throws Exception {
-        String json = invokeToJson(Map.of("s", "\"\\\n\r\t"));
+        String json = toJson(Map.of("s", "\"\\\n\r\t"));
         assertTrue(json.contains("\\\""));
         assertTrue(json.contains("\\\\"));
         assertTrue(json.contains("\\n"));
@@ -39,10 +41,8 @@ public class JsonUtilTest {
         assertTrue(json.contains("\\t"));
     }
 
-    private static String invokeToJson(Object body) throws Exception {
-        var m = JsonUtil.class.getDeclaredMethod("toJson", Object.class);
-        m.setAccessible(true);
-        return (String) m.invoke(null, body);
+    private static String toJson(Object body) throws Exception {
+        return new String(JacksonJson.writeBytes(body), StandardCharsets.UTF_8);
     }
 }
 
