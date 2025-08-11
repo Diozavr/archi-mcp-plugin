@@ -1,9 +1,35 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Extended smoke test for Archi MCP Plugin (localhost only)
+# Extended smoke test for Archi MCP Plugin (localhost/WSL)
 API_PORT="${ARCHI_MCP_PORT:-8765}"
-BASE="http://127.0.0.1:${API_PORT}"
+
+is_wsl() { grep -qiE 'microsoft|wsl' /proc/sys/kernel/osrelease 2>/dev/null || [ -n "${WSL_DISTRO_NAME:-}" ]; }
+
+pick_curl() {
+  if is_wsl && command -v curl.exe >/dev/null 2>&1; then
+    echo "curl.exe"
+  else
+    echo "curl"
+  fi
+}
+
+CURL_BIN="${CURL_BIN:-$(pick_curl)}"
+
+# Resolve host: if using Windows curl.exe from WSL, 127.0.0.1 works (Windows loopback);
+# otherwise use nameserver from /etc/resolv.conf to reach Windows host from WSL.
+detect_host() {
+  local host="127.0.0.1"
+  if [ "$CURL_BIN" != "curl.exe" ] && is_wsl; then
+    local ns
+    ns=$(awk '/^nameserver/{print $2; exit}' /etc/resolv.conf 2>/dev/null || true)
+    if [ -n "$ns" ]; then host="$ns"; fi
+  fi
+  echo "$host"
+}
+
+API_HOST="${ARCHI_MCP_HOST:-$(detect_host)}"
+BASE="http://${API_HOST}:${API_PORT}"
 
 echo "[SMOKE] Base: ${BASE}"
 
@@ -13,7 +39,23 @@ run() {
   "$@" | jq .
 }
 
-curl_json() { curl -sS -H 'Content-Type: application/json' "$@"; }
+curl_json() { "$CURL_BIN" -sS -H 'Content-Type: application/json' "$@"; }
+
+# Wait briefly for server to be ready
+wait_ready() {
+  local tries=20
+  local delay=0.5
+  while [ $tries -gt 0 ]; do
+    code=$("$CURL_BIN" -s -o /dev/null -w "%{http_code}" "${BASE}/status" || true)
+    if [ "$code" = "200" ]; then return 0; fi
+    tries=$((tries-1))
+    sleep "$delay"
+  done
+  echo "[SMOKE] Server not reachable at ${BASE}/status" >&2
+  return 1
+}
+
+wait_ready
 
 # 1) Service status
 run "GET /status" curl_json "${BASE}/status"
@@ -25,7 +67,7 @@ run "GET /openapi.json" curl_json "${BASE}/openapi.json"
 run "GET /types" curl_json "${BASE}/types"
 
 # 4) Folders (may be 409 when no active model)
-code=$(curl -s -o /dev/null -w "%{http_code}" "${BASE}/folders")
+code=$("$CURL_BIN" -s -o /dev/null -w "%{http_code}" "${BASE}/folders")
 if [ "$code" = "409" ]; then
   echo "\n[SMOKE] No active model (HTTP 409). Model-dependent checks are skipped."
   exit 0
@@ -67,10 +109,10 @@ run "GET /views/${VID1}/content" curl_json "${BASE}/views/${VID1}/content"
 run "DELETE /views/${VID1}/objects/${OBJ2}" curl_json -X DELETE "${BASE}/views/${VID1}/objects/${OBJ2}"
 
 # 9) View image
-curl -sS "${BASE}/views/${VID1}/image?format=png&scale=1.0&bg=transparent&margin=0" -o /tmp/view.png -D /tmp/headers.txt > /dev/null
+"$CURL_BIN" -sS "${BASE}/views/${VID1}/image?format=png&scale=1.0&bg=transparent&margin=0" -o /tmp/view.png -D /tmp/headers.txt > /dev/null
 grep -iq 'image/png' /tmp/headers.txt
 [ -s /tmp/view.png ]
-code=$(curl -s -o /dev/null -w "%{http_code}" "${BASE}/views/${VID1}/image?format=svg")
+code=$("$CURL_BIN" -s -o /dev/null -w "%{http_code}" "${BASE}/views/${VID1}/image?format=svg")
 if [ "$code" != "400" ]; then echo "Unexpected SVG response code: $code"; exit 1; fi
 
 # 10) Search
@@ -81,18 +123,18 @@ run "GET /search with params" curl_json "${BASE}/search?q=Actor&kind=element&lim
 run "POST /model/save" curl_json -X POST "${BASE}/model/save"
 
 # 12) Script stubs
-curl -s -o /dev/null -w "%{http_code}" "${BASE}/script/engines" | grep -q '^501$'
-curl -s -o /dev/null -w "%{http_code}" -X POST "${BASE}/script/run" | grep -q '^501$'
+"$CURL_BIN" -s -o /dev/null -w "%{http_code}" "${BASE}/script/engines" | grep -q '^501$'
+"$CURL_BIN" -s -o /dev/null -w "%{http_code}" -X POST "${BASE}/script/run" | grep -q '^501$'
 
 # 13) Error checks
-curl -s -o /dev/null -w "%{http_code}" "${BASE}/elements/bogus" | grep -q '^404$'
-curl -s -o /dev/null -w "%{http_code}" "${BASE}/views/bogus" | grep -q '^404$'
-curl -s -o /dev/null -w "%{http_code}" -X POST "${BASE}/status" | grep -q '^405$'
+"$CURL_BIN" -s -o /dev/null -w "%{http_code}" "${BASE}/elements/bogus" | grep -q '^404$'
+"$CURL_BIN" -s -o /dev/null -w "%{http_code}" "${BASE}/views/bogus" | grep -q '^404$'
+"$CURL_BIN" -s -o /dev/null -w "%{http_code}" -X POST "${BASE}/status" | grep -q '^405$'
 
 # 14) Cleanup
-curl -s -o /dev/null -w "%{http_code}" -X DELETE "${BASE}/relations/${REL}" | grep -q '^204$'
-curl -s -o /dev/null -w "%{http_code}" -X DELETE "${BASE}/elements/${E1}" | grep -q '^204$'
-curl -s -o /dev/null -w "%{http_code}" -X DELETE "${BASE}/elements/${E2}" | grep -q '^204$'
-curl -s -o /dev/null -w "%{http_code}" -X DELETE "${BASE}/views/${VID1}" | grep -q '^204$'
+"$CURL_BIN" -s -o /dev/null -w "%{http_code}" -X DELETE "${BASE}/relations/${REL}" | grep -q '^204$'
+"$CURL_BIN" -s -o /dev/null -w "%{http_code}" -X DELETE "${BASE}/elements/${E1}" | grep -q '^204$'
+"$CURL_BIN" -s -o /dev/null -w "%{http_code}" -X DELETE "${BASE}/elements/${E2}" | grep -q '^204$'
+"$CURL_BIN" -s -o /dev/null -w "%{http_code}" -X DELETE "${BASE}/views/${VID1}" | grep -q '^204$'
 
 echo "\n[SMOKE] Flow completed."
