@@ -95,7 +95,11 @@ public final class JsonReader {
         if (v.isBoolean()) return v.booleanValue();
         if (v.isTextual()) {
             String s = v.asText();
-            return "true".equalsIgnoreCase(s) || "1".equals(s) || "yes".equalsIgnoreCase(s);
+            // Only recognize explicit truthy strings; all other textual values are treated as absent (null)
+            if ("true".equalsIgnoreCase(s) || "1".equals(s) || "yes".equalsIgnoreCase(s)) {
+                return Boolean.TRUE;
+            }
+            return null;
         }
         return null;
     }

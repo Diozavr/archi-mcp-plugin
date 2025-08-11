@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpContext;
+import com.sun.net.httpserver.HttpPrincipal;
 
 public class FakeHttpExchange extends HttpExchange {
     private final Headers requestHeaders = new Headers();
@@ -43,6 +44,7 @@ public class FakeHttpExchange extends HttpExchange {
     @Override public Object getAttribute(String name) { return null; }
     @Override public void setAttribute(String name, Object value) {}
     @Override public void setStreams(InputStream i, OutputStream o) {}
+    @Override public HttpPrincipal getPrincipal() { return null; }
 
     public int getResponseCode() { return responseCode; }
     public String getResponseString() { return responseBody.toString(StandardCharsets.UTF_8); }
