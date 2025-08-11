@@ -1,8 +1,6 @@
 package com.archimatetool.mcp.http.handlers;
 
 import java.io.IOException;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -10,6 +8,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 import com.archimatetool.mcp.Config;
+import com.archimatetool.mcp.http.QueryParams;
 import com.archimatetool.mcp.http.ResponseUtil;
 import com.archimatetool.mcp.server.ModelApi;
 import com.archimatetool.model.IArchimateElement;
@@ -21,30 +20,26 @@ public class SearchHttpHandler implements HttpHandler {
     @Override
     public void handle(HttpExchange exchange) throws IOException {
         if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) { ResponseUtil.methodNotAllowed(exchange); return; }
-        String q = null;
-        String kind = null; // element | relation | view
-        String elementType = null;
-        String relationType = null;
-        String modelIdFilter = null;
-        boolean includeDocs = false;
-        boolean includeProps = false;
-        int limit = 100;
-        int offset = 0;
-        boolean debugRequested = false;
-        String logTarget = "stdout"; // stdout | script (best-effort)
+        QueryParams qp = QueryParams.from(exchange);
+        String q = qp.first("q");
+        String kind = qp.first("kind");
+        String elementType = qp.first("elementType");
+        String relationType = qp.first("relationType");
+        String modelIdFilter = qp.first("modelId");
+        boolean includeDocs = qp.getBool("includeDocs", false);
+        boolean includeProps = qp.getBool("includeProps", false);
+        int limit = Math.max(1, Math.min(1000, qp.getInt("limit", 100)));
+        int offset = Math.max(0, qp.getInt("offset", 0));
+        boolean debugRequested = qp.getBool("debug", false);
+        String logTarget = qp.first("log") != null ? qp.first("log") : qp.first("logTarget");
+        if (logTarget == null) logTarget = "stdout";
         Map<String,String> propEq = new HashMap<>();
-        var query = exchange.getRequestURI().getQuery();
-        if (query != null) {
-            for (String p: query.split("&")) {
-                int i=p.indexOf('='); if (i<=0) continue; String k=p.substring(0,i); String v=URLDecoder.decode(p.substring(i+1), StandardCharsets.UTF_8);
-                if ("q".equals(k)) q = v; else if ("kind".equals(k)) kind = v; else if ("elementType".equals(k)) elementType = v; else if ("relationType".equals(k)) relationType = v; else if ("modelId".equals(k)) modelIdFilter = v;
-                else if ("includeDocs".equals(k)) includeDocs = "true".equalsIgnoreCase(v) || "1".equals(v);
-                else if ("includeProps".equals(k)) includeProps = "true".equalsIgnoreCase(v) || "1".equals(v);
-                else if ("property".equals(k)) { int eq = v.indexOf('='); if (eq>0) { String pk = v.substring(0,eq); String pv = v.substring(eq+1); propEq.put(pk, pv); } }
-                else if ("limit".equals(k)) { try { limit = Math.max(1, Math.min(1000, Integer.parseInt(v))); } catch (Exception ex) { /* ignore */ } }
-                else if ("offset".equals(k)) { try { offset = Math.max(0, Integer.parseInt(v)); } catch (Exception ex) { /* ignore */ } }
-                else if ("debug".equals(k)) { debugRequested = isTrue(v); }
-                else if ("log".equals(k) || "logTarget".equals(k)) { logTarget = v != null ? v : logTarget; }
+        for (String v : qp.all("property")) {
+            int eq = v.indexOf('=');
+            if (eq > 0) {
+                String pk = v.substring(0, eq);
+                String pv = v.substring(eq + 1);
+                propEq.put(pk, pv);
             }
         }
         var model = com.archimatetool.mcp.service.ServiceRegistry.activeModel().getActiveModel();

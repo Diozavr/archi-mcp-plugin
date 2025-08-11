@@ -4,7 +4,7 @@
 
 - Хост/порт: http://127.0.0.1:8765
 - Запуск: автоматически при старте Archi (Bundle-Activator + org.eclipse.ui.startup)
-- Требования: JavaSE 11, Archi (PDE), зависимости `org.eclipse.ui`, `com.archimatetool.editor`
+- Требования: JavaSE 17, Archi (PDE), зависимости `org.eclipse.ui`, `com.archimatetool.editor`
 
 ## Быстрый старт (PDE/Eclipse)
 1) Импортируйте `com.archimatetool.mcp` как PDE‑плагин.
@@ -21,7 +21,8 @@ curl -s http://127.0.0.1:8765/status
 - Элементы: `POST /elements`, `GET|PATCH|DELETE /elements/{id}`
   - Обогащение ответа элемента через query: `?include=relations[&includeElements=true]`
 - Связи: `POST /relations`, `GET|PATCH|DELETE /relations/{id}`
-- Виды: `GET /views`, `POST /views`, `GET|DELETE /views/{id}`, `GET /views/{id}/content`, `PATCH /views/{id}/objects/{objectId}/bounds`
+- Виды: `GET /views`, `POST /views`, `GET|DELETE /views/{id}`, `GET /views/{id}/content`,
+  `GET /views/{id}/image?format=png|svg`, `PATCH /views/{id}/objects/{objectId}/bounds`
 - Legacy: `GET /views/content?id=...`, `POST /views/add-element`
 
 ## Архитектура
@@ -31,6 +32,6 @@ curl -s http://127.0.0.1:8765/status
 
 ## Ограничения
 - Слушает только 127.0.0.1
-- JSON‑парсинг упрощён (регекспы)
+- JSON‑парсинг и сериализация через Jackson
 - `/elements` (GET) отсутствует — используйте `/search`
 - `/script/*` → 501
