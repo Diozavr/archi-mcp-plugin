@@ -340,11 +340,36 @@
         "responses": { "200": { "description": "Content", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ViewContent" } } } } }
       }
     },
+    "/views/{id}/image": {
+      "get": {
+        "summary": "Render view to image (PNG/SVG)",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "format", "in": "query", "required": false, "schema": { "type": "string", "enum": ["png","svg"], "default": "png" } },
+          { "name": "scale", "in": "query", "required": false, "schema": { "type": "number", "minimum": 0.1, "maximum": 4.0, "default": 1.0 } },
+          { "name": "dpi", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 72, "maximum": 600 }, "description": "PNG only" },
+          { "name": "bg", "in": "query", "required": false, "schema": { "type": "string", "default": "transparent" }, "description": "'transparent' or #RRGGBB" },
+          { "name": "margin", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 0, "default": 0 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Image",
+            "content": {
+              "image/png": { "schema": { "type": "string", "format": "binary" } },
+              "image/svg+xml": { "schema": { "type": "string" } }
+            }
+          },
+          "400": { "description": "Bad Request" },
+          "404": { "description": "Not Found" },
+          "409": { "description": "Conflict (no active model)" }
+        }
+      }
+    },
     "/views/{id}/add-element": {
       "post": {
         "summary": "Add element to view",
         "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "elementId": { "type": "string" }, "bounds": { "$ref": "#/components/schemas/Bounds" }, "style": { "type": "object", "additionalProperties": { "type": "string" } } }, "required": ["elementId", "bounds"] } } } },
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "elementId": { "type": "string" }, "parentObjectId": { "type": "string", "description": "Optional parent diagram object container to place the element into." }, "bounds": { "$ref": "#/components/schemas/Bounds" }, "style": { "type": "object", "additionalProperties": { "type": "string" } } }, "required": ["elementId", "bounds"] } } } },
         "responses": { "200": { "description": "Added", "content": { "application/json": { "schema": { "type": "object", "properties": { "objectId": { "type": "string" } }, "required": ["objectId"] } } } } }
       }
     },
@@ -362,7 +387,8 @@
                   "relationId": { "type": "string", "description": "Existing model relation ID (IArchimateRelationship)." },
                   "sourceObjectId": { "type": "string", "description": "Diagram object ID for the relation source endpoint (optional)." },
                   "targetObjectId": { "type": "string", "description": "Diagram object ID for the relation target endpoint (optional)." },
-                  "policy": { "type": "string", "enum": ["auto", "fail"], "default": "auto", "description": "When objectId is not provided, 'auto' will pick the only occurrence per side if unambiguous; 'fail' will return an error." }
+                  "policy": { "type": "string", "enum": ["auto", "fail"], "default": "auto", "description": "When objectId is not provided, 'auto' will pick the only occurrence per side if unambiguous; 'fail' will return an error." },
+                  "suppressWhenNested": { "type": "boolean", "default": true, "description": "Optional. Defaults to true. When true and one endpoint object is an ancestor/descendant of the other within the view, do not create a connection and return {suppressed:true}." }
                 },
                 "required": ["relationId"]
               }
@@ -370,6 +396,7 @@
           }
         },
         "responses": {
+          "200": { "description": "Suppressed (no connection created)", "content": { "application/json": { "schema": { "type": "object", "properties": { "suppressed": { "type": "boolean" } }, "required": ["suppressed"] } } } },
           "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Connection" } } } },
           "400": { "description": "Bad Request (missing fields or invalid policy)" },
           "404": { "description": "Not Found (viewId/relationId/objectId)" },
@@ -384,6 +411,34 @@
         "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }, { "name": "objectId", "in": "path", "required": true, "schema": { "type": "string" } } ],
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Bounds" } } } },
         "responses": { "200": { "description": "Updated", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ViewObject" } } } } }
+      }
+    },
+    "/views/{id}/objects/{objectId}/move": {
+      "patch": {
+        "summary": "Move existing diagram object into a container (reparent)",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }, { "name": "objectId", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "parentObjectId": { "type": "string", "description": "Target container object ID in the same view. Use '0' to move the object to the view root (no parent)." },
+                  "bounds": { "$ref": "#/components/schemas/Bounds", "description": "Optional full bounds to set after moving (relative to target container)." },
+                  "keepExistingConnection": { "type": "boolean", "default": false, "description": "Optional. Defaults to false. When false and a connection exists between the object and the target container object on this view, that connection is removed automatically after moving (typical nesting behavior). Set true to preserve the connection." }
+                },
+                "required": ["parentObjectId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Moved", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ViewObject" } } } },
+          "400": { "description": "Bad Request (invalid params or cycle)" },
+          "404": { "description": "Not Found (viewId/objectId/parentObjectId)" },
+          "409": { "description": "Conflict (no active model)" }
+        }
       }
     },
     "/views/{id}/objects/{objectId}": {
@@ -521,6 +576,7 @@
           "type": { "type": "string" },
           "elementId": { "type": "string", "nullable": true },
           "relationId": { "type": "string", "nullable": true },
+          "parentObjectId": { "type": "string", "nullable": true },
           "bounds": { "$ref": "#/components/schemas/Bounds" },
           "style": { "type": "object", "additionalProperties": { "type": "string" } }
         },

@@ -47,9 +47,48 @@ public class ViewItemHttpHandler implements HttpHandler {
             ResponseUtil.ok(exchange, ModelApi.viewContentToDto(view));
             return;
         }
+        if ("image".equals(subpath) && "GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+            model = ServiceRegistry.activeModel().getActiveModel();
+            if (model == null) { ResponseUtil.conflictNoActiveModel(exchange); return; }
+            // Query params: format=png|svg (only png for now), scale, dpi, bg, margin
+            String q = exchange.getRequestURI().getQuery();
+            String format = "png";
+            float scale = 1.0f;
+            Integer dpi = null;
+            String bg = "transparent";
+            int margin = 0;
+            if (q != null) {
+                for (String p: q.split("&")) {
+                    int i=p.indexOf('='); if (i<=0) continue; String k=p.substring(0,i); String v=p.substring(i+1);
+                    if ("format".equals(k)) format = v;
+                    else if ("scale".equals(k)) { try { scale = Float.parseFloat(v); } catch (Exception ignore) {} }
+                    else if ("dpi".equals(k)) { try { dpi = Integer.valueOf(Integer.parseInt(v)); } catch (Exception ignore) {} }
+                    else if ("bg".equals(k)) { bg = v; }
+                    else if ("margin".equals(k)) { try { margin = Integer.parseInt(v); } catch (Exception ignore) {} }
+                }
+            }
+            if (!"png".equalsIgnoreCase(format)) { ResponseUtil.badRequest(exchange, "only png is supported for now"); return; }
+            java.awt.Color bgc = null;
+            if (bg != null && !"transparent".equalsIgnoreCase(bg)) {
+                try { if (bg.startsWith("%23")) bg = bg.replace("%23", "#"); } catch (Exception ignore) {}
+                if (bg.startsWith("#") && bg.length()==7) {
+                    int r = Integer.parseInt(bg.substring(1,3),16);
+                    int g = Integer.parseInt(bg.substring(3,5),16);
+                    int b = Integer.parseInt(bg.substring(5,7),16);
+                    bgc = new java.awt.Color(r,g,b);
+                }
+            }
+            byte[] png = ModelApi.renderViewToPNG(view, scale, dpi, bgc, margin);
+            if (png == null || png.length == 0) { ResponseUtil.badRequest(exchange, "render failed"); return; }
+            exchange.getResponseHeaders().set("Content-Type", "image/png");
+            exchange.sendResponseHeaders(200, png.length);
+            try (java.io.OutputStream os = exchange.getResponseBody()) { os.write(png); }
+            return;
+        }
         if ("add-element".equals(subpath) && "POST".equalsIgnoreCase(exchange.getRequestMethod())) {
             JsonReader jr = JsonReader.fromExchange(exchange);
             String elementId = jr.optString("elementId");
+            String parentObjectId = jr.optString("parentObjectId");
             Integer bx = jr.optIntWithin("bounds", "x");
             Integer by = jr.optIntWithin("bounds", "y");
             Integer bw = jr.optIntWithin("bounds", "w");
@@ -64,7 +103,18 @@ public class ViewItemHttpHandler implements HttpHandler {
             int h = bh != null ? bh.intValue() : 80;
             Object eo = ServiceRegistry.activeModel().findById(model, elementId);
             if (!(eo instanceof IArchimateElement)) { ResponseUtil.notFound(exchange, "element not found"); return; }
-            var dmo = ServiceRegistry.views().addElementToView(view, (IArchimateElement)eo, x, y, w, h);
+            com.archimatetool.model.IDiagramModelObject parentObj = null;
+            if (parentObjectId != null && !parentObjectId.isEmpty()) {
+                parentObj = ModelApi.findDiagramObjectById(view, parentObjectId);
+                if (parentObj == null) { ResponseUtil.notFound(exchange, "parentObjectId not found in view"); return; }
+                if (!(parentObj instanceof com.archimatetool.model.IDiagramModelContainer)) { ResponseUtil.badRequest(exchange, "parent object is not a container"); return; }
+            }
+            com.archimatetool.model.IDiagramModelArchimateObject dmo;
+            if (parentObj instanceof com.archimatetool.model.IDiagramModelContainer) {
+                dmo = ServiceRegistry.views().addElementToContainer((com.archimatetool.model.IDiagramModelContainer) parentObj, (IArchimateElement)eo, x, y, w, h);
+            } else {
+                dmo = ServiceRegistry.views().addElementToView(view, (IArchimateElement)eo, x, y, w, h);
+            }
             ResponseUtil.ok(exchange, Map.of("objectId", dmo.getId()));
             return;
         }
@@ -73,6 +123,7 @@ public class ViewItemHttpHandler implements HttpHandler {
             String relationId = jr.optString("relationId");
             String sourceObjectId = jr.optString("sourceObjectId");
             String targetObjectId = jr.optString("targetObjectId");
+            Boolean suppressWhenNested = jr.optBool("suppressWhenNested");
             String policy = jr.optString("policy");
             if (policy == null || policy.isEmpty()) policy = "auto";
             if (relationId == null || relationId.isEmpty()) { ResponseUtil.badRequest(exchange, "relationId is required"); return; }
@@ -121,6 +172,13 @@ public class ViewItemHttpHandler implements HttpHandler {
                 }
             }
 
+            // Optionally suppress when nested
+            if (Boolean.TRUE.equals(suppressWhenNested)) {
+                if (ModelApi.isAncestorOf(so, to) || ModelApi.isAncestorOf(to, so)) {
+                    ResponseUtil.ok(exchange, java.util.Map.of("suppressed", true));
+                    return;
+                }
+            }
             var conn = ModelApi.addRelationToView(view, rel, so, to);
             ResponseUtil.created(exchange, ModelApi.connectionToDto(conn));
             return;
@@ -130,15 +188,9 @@ public class ViewItemHttpHandler implements HttpHandler {
             int s2 = rest.indexOf('/');
             String objectId = s2>=0 ? rest.substring(0, s2) : rest;
             String tail = s2>=0 ? rest.substring(s2+1) : null;
-            Object obj = null;
-            for (Object child : view.getChildren()) {
-                if (child instanceof com.archimatetool.model.IDiagramModelObject) {
-                    com.archimatetool.model.IDiagramModelObject d = (com.archimatetool.model.IDiagramModelObject) child;
-                    if (objectId.equals(d.getId())) { obj = d; break; }
-                }
-            }
-            if (!(obj instanceof com.archimatetool.model.IDiagramModelObject)) { ResponseUtil.notFound(exchange, "object not found"); return; }
-            com.archimatetool.model.IDiagramModelObject dmo = (com.archimatetool.model.IDiagramModelObject) obj;
+            // Use recursive lookup so nested objects are supported
+            com.archimatetool.model.IDiagramModelObject dmo = ModelApi.findDiagramObjectById(view, objectId);
+            if (dmo == null) { ResponseUtil.notFound(exchange, "object not found"); return; }
             if (tail == null && "DELETE".equalsIgnoreCase(exchange.getRequestMethod())) {
                 boolean ok = ServiceRegistry.views().deleteViewObject(dmo);
                 if (ok) { ResponseUtil.noContent(exchange); } else { ResponseUtil.badRequest(exchange, "cannot remove object"); }
@@ -158,6 +210,65 @@ public class ViewItemHttpHandler implements HttpHandler {
                 final com.archimatetool.model.IBounds fb = b;
                 org.eclipse.swt.widgets.Display.getDefault().syncExec(() -> dmo.setBounds(fb));
                 ResponseUtil.ok(exchange, ModelApi.viewObjectToDto(dmo));
+                return;
+            }
+            if ("move".equals(tail) && "PATCH".equalsIgnoreCase(exchange.getRequestMethod())) {
+                JsonReader jr = JsonReader.fromExchange(exchange);
+                String parentObjectId = jr.optString("parentObjectId");
+                if (parentObjectId == null || parentObjectId.isEmpty()) { ResponseUtil.badRequest(exchange, "parentObjectId is required"); return; }
+                com.archimatetool.model.IDiagramModelObject parentObj = null;
+                com.archimatetool.model.IDiagramModelContainer targetContainer = null;
+                if ("0".equals(parentObjectId)) {
+                    targetContainer = view; // move to root
+                } else {
+                    parentObj = ModelApi.findDiagramObjectById(view, parentObjectId);
+                    if (parentObj == null) { ResponseUtil.notFound(exchange, "parentObjectId not found in view"); return; }
+                    if (!(parentObj instanceof com.archimatetool.model.IDiagramModelContainer)) { ResponseUtil.badRequest(exchange, "parent object is not a container"); return; }
+                    targetContainer = (com.archimatetool.model.IDiagramModelContainer) parentObj;
+                }
+                // Prevent cycles: parent cannot be the object itself or inside its subtree
+                if (parentObj != null && ModelApi.isAncestorOf(dmo, parentObj)) { ResponseUtil.badRequest(exchange, "cannot move into own descendant"); return; }
+                Integer bx = jr.optIntWithin("bounds", "x");
+                Integer by = jr.optIntWithin("bounds", "y");
+                Integer bw = jr.optIntWithin("bounds", "w");
+                Integer bh = jr.optIntWithin("bounds", "h");
+                var moved = ServiceRegistry.views().moveObjectToContainer(dmo, targetContainer, bx, by, bw, bh);
+                Boolean keepExistingConnection = jr.optBool("keepExistingConnection");
+                if (!Boolean.TRUE.equals(keepExistingConnection) && parentObj != null) {
+                    // If there is an Archimate relationship between elements of moved object and parent, and a connection exists on this view between these objects, remove that connection
+                    try {
+                        if (dmo instanceof com.archimatetool.model.IDiagramModelArchimateObject && parentObj instanceof com.archimatetool.model.IDiagramModelArchimateObject) {
+                            var childEl = ((com.archimatetool.model.IDiagramModelArchimateObject) dmo).getArchimateConcept();
+                            var parentEl = ((com.archimatetool.model.IDiagramModelArchimateObject) parentObj).getArchimateConcept();
+                            if (childEl instanceof com.archimatetool.model.IArchimateElement && parentEl instanceof com.archimatetool.model.IArchimateElement) {
+                                // Find direct connection object between these two diagram objects (either direction)
+                                java.util.List<Object> toDel = new java.util.ArrayList<>();
+                                for (Object co : dmo.getSourceConnections()) {
+                                    if (co instanceof com.archimatetool.model.IDiagramModelArchimateConnection) {
+                                        var ac = (com.archimatetool.model.IDiagramModelArchimateConnection) co;
+                                        if (ac.getSource() == dmo && ac.getTarget() == parentObj) toDel.add(ac);
+                                    }
+                                }
+                                for (Object co : dmo.getTargetConnections()) {
+                                    if (co instanceof com.archimatetool.model.IDiagramModelArchimateConnection) {
+                                        var ac = (com.archimatetool.model.IDiagramModelArchimateConnection) co;
+                                        if (ac.getTarget() == dmo && ac.getSource() == parentObj) toDel.add(ac);
+                                    }
+                                }
+                                if (!toDel.isEmpty()) {
+                                    final java.util.List<Object> dels = toDel;
+                                    org.eclipse.swt.widgets.Display.getDefault().syncExec(() -> {
+                                        for (Object dc : dels) {
+                                            org.eclipse.emf.ecore.util.EcoreUtil.delete((org.eclipse.emf.ecore.EObject) dc);
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                    } catch (Throwable ignore) { /* best-effort removal */ }
+                }
+                if (moved == null) { ResponseUtil.badRequest(exchange, "cannot move object"); return; }
+                ResponseUtil.ok(exchange, ModelApi.viewObjectToDto(moved));
                 return;
             }
         }

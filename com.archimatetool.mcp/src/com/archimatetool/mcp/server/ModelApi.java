@@ -37,12 +37,6 @@ import com.archimatetool.model.util.ArchimateModelUtils;
 
 public class ModelApi {
 
-    // Moved to ActiveModelService
-    @Deprecated
-    public static IArchimateModel getActiveModel() {
-        return new com.archimatetool.mcp.service.ActiveModelService().getActiveModel();
-    }
-
     public static Object findById(IArchimateModel model, String id) {
         return ArchimateModelUtils.getObjectByID(model, id);
     }
@@ -96,6 +90,11 @@ public class ModelApi {
         Map<String, Object> m = new HashMap<>();
         m.put("objectId", obj.getId());
         m.put("type", obj.eClass().getName());
+        // expose parentObjectId when parent is a diagram object
+        Object parent = obj.eContainer();
+        if (parent instanceof IDiagramModelObject) {
+            m.put("parentObjectId", ((IDiagramModelObject) parent).getId());
+        }
         if (obj instanceof IDiagramModelArchimateObject) {
             IDiagramModelArchimateObject ao = (IDiagramModelArchimateObject) obj;
             IArchimateConcept c = ao.getArchimateConcept();
@@ -123,28 +122,35 @@ public class ModelApi {
     public static Map<String, Object> viewContentToDto(IDiagramModel v) {
         Map<String, Object> content = new HashMap<>();
         List<Object> objects = new ArrayList<>();
-        for (Object child : v.getChildren()) {
-            if (child instanceof IDiagramModelObject) {
-                IDiagramModelObject dmo = (IDiagramModelObject) child;
-                objects.add(viewObjectToDto(dmo));
-            }
+        // collect all objects recursively to include nested ones
+        List<IDiagramModelObject> allObjects = new ArrayList<>();
+        collectAllObjects(v, allObjects);
+        for (IDiagramModelObject dmo : allObjects) {
+            objects.add(viewObjectToDto(dmo));
         }
+        // collect connections attached to all objects
         List<Object> conns = new ArrayList<>();
-        // IDiagramModel::getConnections is not available in old Archi; collect from children
-        for (Object child : v.getChildren()) {
-            if (child instanceof IDiagramModelObject) {
-                IDiagramModelObject obj = (IDiagramModelObject) child;
-                for (Object co : obj.getSourceConnections()) {
-                    if (co instanceof IDiagramModelConnection) {
-                        IDiagramModelConnection c = (IDiagramModelConnection) co;
-                        conns.add(connectionToDto(c));
-                    }
+        for (IDiagramModelObject obj : allObjects) {
+            for (Object co : obj.getSourceConnections()) {
+                if (co instanceof IDiagramModelConnection) {
+                    IDiagramModelConnection c = (IDiagramModelConnection) co;
+                    conns.add(connectionToDto(c));
                 }
             }
         }
         content.put("objects", objects);
         content.put("connections", conns);
         return content;
+    }
+
+    public static boolean isAncestorOf(IDiagramModelObject maybeAncestor, IDiagramModelObject node) {
+        if (maybeAncestor == null || node == null) return false;
+        Object p = node.eContainer();
+        while (p instanceof IDiagramModelObject) {
+            if (p == maybeAncestor) return true;
+            p = ((IDiagramModelObject) p).eContainer();
+        }
+        return false;
     }
 
     public static List<IDiagramModel> listViews(IArchimateModel model) {
@@ -188,6 +194,37 @@ public class ModelApi {
 
     private static String safeName(String s) {
         return s == null ? "" : s;
+    }
+
+    public static byte[] renderViewToPNG(IDiagramModel view, float scale, Integer dpi, java.awt.Color bg, int margin) {
+        final byte[][] out = new byte[1][1];
+        Display.getDefault().syncExec(() -> {
+            org.eclipse.swt.graphics.Image image = null;
+            try {
+                int intScale = Math.max(1, Math.round(scale));
+                // Direct use of Archi's DiagramUtils and ImageFactory as в scripting‑plugin
+                image = com.archimatetool.editor.diagram.util.DiagramUtils.createImage(view, intScale, margin);
+                org.eclipse.swt.graphics.ImageData data = image.getImageData(com.archimatetool.editor.ui.ImageFactory.getImageDeviceZoom());
+                if (dpi != null && dpi > 0) {
+                    try {
+                        java.lang.reflect.Field fxdpi = data.getClass().getField("xdpi");
+                        java.lang.reflect.Field fydpi = data.getClass().getField("ydpi");
+                        fxdpi.setInt(data, dpi.intValue());
+                        fydpi.setInt(data, dpi.intValue());
+                    } catch (Throwable ignoreDpi) { /* ignore */ }
+                }
+                org.eclipse.swt.graphics.ImageLoader loader = new org.eclipse.swt.graphics.ImageLoader();
+                loader.data = new org.eclipse.swt.graphics.ImageData[] { data };
+                java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                loader.save(baos, org.eclipse.swt.SWT.IMAGE_PNG);
+                out[0] = baos.toByteArray();
+            } catch (Throwable t) {
+                out[0] = new byte[0];
+            } finally {
+                if (image != null && !image.isDisposed()) image.dispose();
+            }
+        });
+        return out[0];
     }
 
     public static IDiagramModelObject findDiagramObjectById(IDiagramModel view, String objectId) {
