@@ -3,6 +3,7 @@ package com.archimatetool.mcp.http;
 import java.io.IOException;
 import java.util.Map;
 
+import com.archimatetool.mcp.core.errors.*;
 import com.archimatetool.mcp.server.JsonUtil;
 import com.sun.net.httpserver.HttpExchange;
 
@@ -43,6 +44,29 @@ public final class ResponseUtil {
 
     public static void notImplemented(HttpExchange exchange, String msg) throws IOException {
         json(exchange, 501, Map.of("ok", false, "error", msg));
+    }
+
+    public static void unprocessable(HttpExchange exchange, String msg) throws IOException {
+        json(exchange, 422, Map.of("error", msg));
+    }
+
+    public static void internalError(HttpExchange exchange, String msg) throws IOException {
+        json(exchange, 500, Map.of("error", msg));
+    }
+
+    /** Map core exceptions to HTTP error responses. */
+    public static void handleCoreException(HttpExchange exchange, CoreException ex) throws IOException {
+        if (ex instanceof BadRequestException) {
+            badRequest(exchange, ex.getMessage());
+        } else if (ex instanceof NotFoundException) {
+            notFound(exchange, ex.getMessage());
+        } else if (ex instanceof ConflictException) {
+            json(exchange, 409, Map.of("error", ex.getMessage()));
+        } else if (ex instanceof UnprocessableException) {
+            unprocessable(exchange, ex.getMessage());
+        } else {
+            internalError(exchange, "internal error");
+        }
     }
 }
 

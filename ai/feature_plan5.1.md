@@ -65,47 +65,47 @@
 1) Подготовка инфраструктуры ядра
    - Создать пакеты `core/*`, ввести `CoreException` и маппер ошибок для REST.
    - Вынести общие валидации (ID, policy, bounds) в `core.validation`.
-   - Статус: [todo]
-   - Сделано: —
-   - Осталось: все подпункты шага
+   - Статус: [done]
+   - Сделано: `core.errors.*`, `ResponseUtil.handleCoreException`, базовый валидатор, проверки `requireNonNull/requireNonEmpty/requireNonNegative`
+   - Осталось: —
 2) Elements/Relations: миграция
    - Реализовать `ElementsCore`, `RelationsCore` поверх `ServiceRegistry`/`ModelApi`.
    - Обновить `ElementsHttpHandler`, `ElementItemHttpHandler`, `RelationsHttpHandler`, `RelationItemHttpHandler` на делегирование в ядро.
    - Сохранить прежние ответы/коды.
-   - Статус: [todo]
-   - Сделано: —
-   - Осталось: все подпункты шага
+   - Статус: [done]
+   - Сделано: `ElementsCore.create/get/update/delete/listRelations`, делегирование из `ElementsHttpHandler` и `ElementItemHttpHandler`; `RelationsCore.create/get/update/delete`, делегирование из `RelationsHttpHandler` и `RelationItemHttpHandler`; негативные тесты валидаций ядра
+   - Осталось: —
 3) Views: миграция
    - Реализовать `ViewsCore` (включая add‑element, add‑relation, bounds/move/remove, content, image).
    - Перевести `ViewsHttpHandler`, `ViewItemHttpHandler`, `Legacy*` на ядро.
-   - Статус: [todo]
-   - Сделано: —
-   - Осталось: все подпункты шага
+   - Статус: [done]
+   - Сделано: `ViewsCore.list/create/get/delete`, `getViewContent`, `addElement`, `addRelation`, операции objects/* (bounds/move/remove), `getViewImage`; делегирование из `ViewsHttpHandler`, `ViewItemHttpHandler`, `LegacyViewContent*`, `LegacyViewAddElement*`
+   - Осталось: —
 4) Search/Folders/Save: миграция
-   - `SearchCore`, `FoldersCore`, `ModelSaveCore` (можно как методы в соответствующих классах).
+   - `SearchCore`, `FoldersCore`, `ModelCore` (можно как методы в соответствующих классах).
    - Перевести хендлеры.
-   - Статус: [todo]
-   - Сделано: —
-   - Осталось: все подпункты шага
+   - Статус: [done]
+   - Сделано: `SearchCore.search`, `FoldersCore.listFolders/ensureFolder`, `ModelCore.saveModel`; делегирование из `SearchHttpHandler`, `FoldersHttpHandler`, `FolderEnsureHttpHandler`, `ModelSaveHttpHandler`
+   - Осталось: —
 5) MCP контроллер (подготовка)
    - Ввести `JsonRpcHttpHandler` (контур, без полного набора методов) — делегация в ядро.
    - Список методов MCP строится на базе тех же `*Cmd/*Query` и DTO.
-   - Статус: [todo]
-   - Сделано: —
-   - Осталось: все подпункты шага
+   - Статус: [done]
+   - Сделано: `JsonRpcHttpHandler` покрывает `elements.*`, `relations.*`, `views.*`, `search`, `folders.*`, `model.save`
+   - Осталось: —
 6) Тесты [[memory:5587551]]
    - Юнит‑тесты ядра: сценарии happy‑path и негативные (исключения/валидации).
    - Тесты REST‑хендлеров — тонкие (проверка маппинга кодов и формата ответа).
    - Интеграционные smoke — без изменений (должны оставаться зелёными).
-   - Статус: [todo]
-   - Сделано: —
-   - Осталось: все подпункты шага
+   - Статус: [partial]
+   - Сделано: негативные и позитивные проверки валидаторов ядра, покрытие happy‑path ядра, маппинг ошибок в ResponseUtil, тесты JsonRpcHttpHandler (happy и error), покрытие TypesHttpHandler
+   - Осталось: интеграционный smoke (требует запущенного MCP сервера с активной моделью)
 7) Очистка/рефакторинг
    - Удалить дубли логики из хендлеров, оставить только адаптацию.
    - Обновить `AGENTS.md` (архитектура, слой ядра, политика ошибок).
-   - Статус: [todo]
-   - Сделано: —
-   - Осталось: все подпункты шага
+   - Статус: [done]
+   - Сделано: делегирование всех хендлеров в ядро; обновлён `AGENTS.md` с описанием архитектуры и маппинга ошибок
+   - Осталось: —
    
 -
 
@@ -119,10 +119,10 @@
   - Сделано: краткий список подпунктов
   - Осталось: краткий список подпунктов с владельцем/блокерами при наличии
 - Пример:
-  - Шаг 2 (Elements/Relations):
-    - Статус: [partial]
-    - Сделано: `ElementsCore.create/update/delete`, делегирование из `ElementsHttpHandler`
-    - Осталось: `listRelations`, делегирование для `ElementItemHttpHandler` (relations), негативные тесты ядра
+    - Шаг 2 (Elements/Relations):
+      - Статус: [partial]
+      - Сделано: `ElementsCore.create/get/update/delete/listRelations`, делегирование из `ElementsHttpHandler` и `ElementItemHttpHandler`; `RelationsCore.create/get/update/delete`, делегирование из `RelationsHttpHandler` и `RelationItemHttpHandler`
+      - Осталось: негативные тесты ядра
 
 # DoD:
 - Все REST‑эндпоинты используют общий ядровой слой; поведение и контракты не изменены.
@@ -132,5 +132,6 @@
 # Риски/роллбэк:
 - Риск: регресс по HTTP‑кодам/сообщениям — смягчается e2e‑smoke и тестами хендлеров.
 - Роллбэк: вернуть прежние реализации в хендлерах; ядровые классы оставить выключенными.
+
 
 

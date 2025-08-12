@@ -2,20 +2,23 @@ package com.archimatetool.mcp.http.handlers;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
+import com.archimatetool.mcp.core.elements.ElementsCore;
+import com.archimatetool.mcp.core.errors.CoreException;
+import com.archimatetool.mcp.core.types.DeleteElementCmd;
+import com.archimatetool.mcp.core.types.GetElementQuery;
+import com.archimatetool.mcp.core.types.ListElementRelationsQuery;
+import com.archimatetool.mcp.core.types.UpdateElementCmd;
+import com.archimatetool.mcp.http.QueryParams;
 import com.archimatetool.mcp.http.ResponseUtil;
 import com.archimatetool.mcp.json.JsonReader;
-import com.archimatetool.mcp.server.ModelApi;
-import com.archimatetool.mcp.service.ServiceRegistry;
-import com.archimatetool.model.IArchimateElement;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
+/** HTTP handler for element item operations. */
 public class ElementItemHttpHandler implements HttpHandler {
+    private final ElementsCore core = new ElementsCore();
+
     @Override
     public void handle(HttpExchange exchange) throws IOException {
         URI uri = exchange.getRequestURI();
@@ -23,59 +26,27 @@ public class ElementItemHttpHandler implements HttpHandler {
         String id;
         String subpath = null;
         int slash = remainder.indexOf('/');
-        if (slash >= 0) { id = remainder.substring(0, slash); subpath = remainder.substring(slash + 1); }
-        else { id = remainder; }
+        if (slash >= 0) {
+            id = remainder.substring(0, slash);
+            subpath = remainder.substring(slash + 1);
+        } else {
+            id = remainder;
+        }
 
-        var model = ServiceRegistry.activeModel().getActiveModel();
-        if (model == null) { ResponseUtil.conflictNoActiveModel(exchange); return; }
-        Object o = com.archimatetool.mcp.service.ServiceRegistry.activeModel().findById(model, id);
         String method = exchange.getRequestMethod();
 
         if (subpath != null && !subpath.isEmpty()) {
-            if (!(o instanceof IArchimateElement)) { ResponseUtil.notFound(exchange, "element not found"); return; }
-            IArchimateElement el = (IArchimateElement) o;
             if ("relations".equals(subpath) && "GET".equalsIgnoreCase(method)) {
-                String direction = "both";
-                boolean includeElements = false;
-                String query = uri.getQuery();
-                if (query != null) {
-                    for (String p : query.split("&")) {
-                        int i = p.indexOf('=');
-                        String k = i > 0 ? p.substring(0, i) : p;
-                        String v = i > 0 ? java.net.URLDecoder.decode(p.substring(i + 1), java.nio.charset.StandardCharsets.UTF_8) : "";
-                        if ("direction".equalsIgnoreCase(k)) direction = v != null && !v.isEmpty() ? v.toLowerCase() : direction;
-                        if ("includeElements".equalsIgnoreCase(k)) includeElements = "true".equalsIgnoreCase(v) || "1".equals(v);
-                    }
+                QueryParams qp = QueryParams.from(exchange);
+                String direction = qp.first("direction");
+                boolean includeElements = qp.getBool("includeElements", false);
+                ListElementRelationsQuery q = new ListElementRelationsQuery(id, direction, includeElements);
+                try {
+                    var dto = core.listRelations(q);
+                    ResponseUtil.ok(exchange, dto);
+                } catch (CoreException ex) {
+                    ResponseUtil.handleCoreException(exchange, ex);
                 }
-                List<Object> items = new ArrayList<>();
-                for (Object f : model.getFolders()) {
-                    if (f instanceof com.archimatetool.model.IFolder) {
-                        com.archimatetool.model.IFolder folder = (com.archimatetool.model.IFolder) f;
-                        for (Object e : folder.getElements()) {
-                            if (e instanceof com.archimatetool.model.IArchimateRelationship) {
-                                com.archimatetool.model.IArchimateRelationship r = (com.archimatetool.model.IArchimateRelationship) e;
-                                boolean isOut = r.getSource() == el;
-                                boolean isIn = r.getTarget() == el;
-                                boolean match = "both".equals(direction) || ("out".equals(direction) && isOut) || ("in".equals(direction) && isIn);
-                                if (match && (isOut || isIn)) {
-                                    if (includeElements) {
-                                        Map<String, Object> m = new HashMap<>();
-                                        m.put("relation", ModelApi.relationToDto(r));
-                                        if (r.getSource() instanceof IArchimateElement) m.put("source", ModelApi.elementToDto((IArchimateElement) r.getSource()));
-                                        if (r.getTarget() instanceof IArchimateElement) m.put("target", ModelApi.elementToDto((IArchimateElement) r.getTarget()));
-                                        items.add(m);
-                                    } else {
-                                        items.add(ModelApi.relationToDto(r));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                Map<String, Object> resp = new HashMap<>();
-                resp.put("total", items.size());
-                resp.put("items", items);
-                ResponseUtil.ok(exchange, resp);
                 return;
             }
             ResponseUtil.methodNotAllowed(exchange);
@@ -83,71 +54,48 @@ public class ElementItemHttpHandler implements HttpHandler {
         }
 
         if ("GET".equalsIgnoreCase(method)) {
-            if (!(o instanceof IArchimateElement)) { ResponseUtil.notFound(exchange, "not found"); return; }
-            IArchimateElement el = (IArchimateElement) o;
-            String include = null;
-            boolean includeElements = false;
-            String query = uri.getQuery();
-            if (query != null) {
-                for (String p : query.split("&")) {
-                    int i = p.indexOf('=');
-                    String k = i > 0 ? p.substring(0, i) : p;
-                        String v = i > 0 ? java.net.URLDecoder.decode(p.substring(i + 1), java.nio.charset.StandardCharsets.UTF_8) : "";
-                    if ("include".equalsIgnoreCase(k) || "with".equalsIgnoreCase(k)) include = v;
-                    if ("includeElements".equalsIgnoreCase(k)) includeElements = "true".equalsIgnoreCase(v) || "1".equals(v);
-                }
-            }
-            if (include != null && !include.isEmpty() && java.util.Arrays.stream(include.split(",")).anyMatch(s -> s.trim().equalsIgnoreCase("relations"))) {
-                List<Object> items = new ArrayList<>();
-                for (Object f : model.getFolders()) {
-                    if (f instanceof com.archimatetool.model.IFolder) {
-                        com.archimatetool.model.IFolder folder = (com.archimatetool.model.IFolder) f;
-                        for (Object e : folder.getElements()) {
-                            if (e instanceof com.archimatetool.model.IArchimateRelationship) {
-                                com.archimatetool.model.IArchimateRelationship r = (com.archimatetool.model.IArchimateRelationship) e;
-                                boolean isOut = r.getSource() == el;
-                                boolean isIn = r.getTarget() == el;
-                                if (isOut || isIn) {
-                                    if (includeElements) {
-                                        Map<String, Object> m = new HashMap<>();
-                                        m.put("relation", ModelApi.relationToDto(r));
-                                        if (r.getSource() instanceof IArchimateElement) m.put("source", ModelApi.elementToDto((IArchimateElement) r.getSource()));
-                                        if (r.getTarget() instanceof IArchimateElement) m.put("target", ModelApi.elementToDto((IArchimateElement) r.getTarget()));
-                                        items.add(m);
-                                    } else {
-                                        items.add(ModelApi.relationToDto(r));
-                                    }
-                                }
-                            }
-                        }
+            QueryParams qp = QueryParams.from(exchange);
+            String include = qp.first("include");
+            if (include == null) include = qp.first("with");
+            boolean includeRelations = false;
+            if (include != null) {
+                for (String s : include.split(",")) {
+                    if (s.trim().equalsIgnoreCase("relations")) {
+                        includeRelations = true;
+                        break;
                     }
                 }
-                Map<String,Object> dto = new HashMap<>(ModelApi.elementToDto(el));
-                dto.put("relations", items);
+            }
+            boolean includeElements = qp.getBool("includeElements", false);
+            GetElementQuery q = new GetElementQuery(id, includeRelations, includeElements);
+            try {
+                var dto = core.getElement(q);
                 ResponseUtil.ok(exchange, dto);
-            } else {
-                ResponseUtil.ok(exchange, ModelApi.elementToDto(el));
+            } catch (CoreException ex) {
+                ResponseUtil.handleCoreException(exchange, ex);
             }
             return;
         } else if ("PATCH".equalsIgnoreCase(method)) {
-            if (!(o instanceof IArchimateElement)) { ResponseUtil.notFound(exchange, "not found"); return; }
             JsonReader jr = JsonReader.fromExchange(exchange);
-            String name = jr.optString("name");
-            IArchimateElement el = (IArchimateElement)o;
-            if (name != null) {
-                final String n = name;
-                org.eclipse.swt.widgets.Display.getDefault().syncExec(() -> el.setName(n));
+            UpdateElementCmd cmd = new UpdateElementCmd(id, jr.optString("name"));
+            try {
+                var dto = core.updateElement(cmd);
+                ResponseUtil.ok(exchange, dto);
+            } catch (CoreException ex) {
+                ResponseUtil.handleCoreException(exchange, ex);
             }
-            ResponseUtil.ok(exchange, ModelApi.elementToDto(el));
             return;
         } else if ("DELETE".equalsIgnoreCase(method)) {
-            if (!(o instanceof IArchimateElement)) { ResponseUtil.notFound(exchange, "not found"); return; }
-            boolean ok = com.archimatetool.mcp.service.ServiceRegistry.elements().deleteElement((IArchimateElement)o);
-            if (ok) { ResponseUtil.noContent(exchange); } else { ResponseUtil.badRequest(exchange, "cannot delete"); }
+            DeleteElementCmd cmd = new DeleteElementCmd(id);
+            try {
+                core.deleteElement(cmd);
+                ResponseUtil.noContent(exchange);
+            } catch (CoreException ex) {
+                ResponseUtil.handleCoreException(exchange, ex);
+            }
             return;
         }
+
         ResponseUtil.methodNotAllowed(exchange);
     }
 }
-
-

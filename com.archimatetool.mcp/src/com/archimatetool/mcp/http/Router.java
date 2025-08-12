@@ -16,6 +16,7 @@ import com.archimatetool.mcp.http.handlers.ModelSaveHttpHandler;
 import com.archimatetool.mcp.http.handlers.LegacyViewContentHttpHandler;
 import com.archimatetool.mcp.http.handlers.LegacyViewAddElementHttpHandler;
 import com.archimatetool.mcp.http.handlers.SearchHttpHandler;
+import com.archimatetool.mcp.http.handlers.JsonRpcHttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
 /**
@@ -42,6 +43,7 @@ public final class Router {
         server.createContext("/views/content", new LegacyViewContentHttpHandler());
         server.createContext("/views/add-element", new LegacyViewAddElementHttpHandler());
         server.createContext("/model/save", new ModelSaveHttpHandler());
+        server.createContext("/mcp", new JsonRpcHttpHandler());
         // Остальные хендлеры будут добавляться по мере рефакторинга
     }
 }

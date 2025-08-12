@@ -28,6 +28,11 @@
 - Любые изменения EMF‑модели — через `org.eclipse.swt.widgets.Display.getDefault().syncExec(...)`.
 - Поиск объектов по id — `ArchimateModelUtils.getObjectByID(...)`.
 
+## Архитектура
+- Бизнес‑логика вынесена в пакет `com.archimatetool.mcp.core.*`.
+- REST‑хендлеры и JSON‑RPC контроллер лишь парсят протокол и делегируют вызовы в ядро.
+- Ядро выбрасывает `CoreException`‑подтипы; `ResponseUtil` и MCP маппят их на HTTP/JSON‑RPC ошибки.
+
 ## Качество/развитие
 - Сохранять legacy‑маршруты до решения о декомиссии.
 - JSON обрабатывается через библиотеку Jackson.

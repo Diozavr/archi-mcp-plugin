@@ -20,4 +20,11 @@ public class TypesHttpHandlerTest {
         assertTrue(root.get("relationTypes").size() > 0);
         assertTrue(root.get("viewTypes").size() > 0);
     }
+
+    @Test
+    public void testRejectsNonGet() throws Exception {
+        FakeHttpExchange ex = new FakeHttpExchange("POST", "/types", "{}");
+        new TypesHttpHandler().handle(ex);
+        assertEquals(405, ex.getResponseCode());
+    }
 }
