@@ -8,6 +8,7 @@ Bundle-RequiredExecutionEnvironment: JavaSE-17
 Eclipse-BundleShape: dir
 Bundle-Activator: com.archimatetool.mcp.Activator
 Require-Bundle: org.eclipse.core.runtime,
+ org.eclipse.osgi,
  org.eclipse.ui,
  com.archimatetool.editor;bundle-version="[5.0.0,6.0.0)",
  com.archimatetool.model;bundle-version="[5.0.0,6.0.0)",

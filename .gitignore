@@ -15,4 +15,11 @@ build/
 # Node (if present in subprojects)
 node_modules/
 
+# Third-party libraries (only Jackson jars are tracked)
+com.archimatetool.mcp/lib/*
+!com.archimatetool.mcp/lib/jackson-annotations-2.17.1.jar
+!com.archimatetool.mcp/lib/jackson-core-2.17.1.jar
+!com.archimatetool.mcp/lib/jackson-databind-2.17.1.jar
+
+
 
