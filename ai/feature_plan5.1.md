@@ -65,22 +65,22 @@
 1) Подготовка инфраструктуры ядра
    - Создать пакеты `core/*`, ввести `CoreException` и маппер ошибок для REST.
    - Вынести общие валидации (ID, policy, bounds) в `core.validation`.
-   - Статус: [todo]
-   - Сделано: —
-   - Осталось: все подпункты шага
+   - Статус: [done]
+   - Сделано: `core.errors.*`, `ResponseUtil.handleCoreException`, базовый валидатор, проверки `requireNonNull/requireNonEmpty/requireNonNegative`
+   - Осталось: —
 2) Elements/Relations: миграция
    - Реализовать `ElementsCore`, `RelationsCore` поверх `ServiceRegistry`/`ModelApi`.
    - Обновить `ElementsHttpHandler`, `ElementItemHttpHandler`, `RelationsHttpHandler`, `RelationItemHttpHandler` на делегирование в ядро.
    - Сохранить прежние ответы/коды.
-   - Статус: [todo]
-   - Сделано: —
-   - Осталось: все подпункты шага
+   - Статус: [done]
+   - Сделано: `ElementsCore.create/get/update/delete/listRelations`, делегирование из `ElementsHttpHandler` и `ElementItemHttpHandler`; `RelationsCore.create/get/update/delete`, делегирование из `RelationsHttpHandler` и `RelationItemHttpHandler`; негативные тесты валидаций ядра
+   - Осталось: —
 3) Views: миграция
    - Реализовать `ViewsCore` (включая add‑element, add‑relation, bounds/move/remove, content, image).
    - Перевести `ViewsHttpHandler`, `ViewItemHttpHandler`, `Legacy*` на ядро.
-   - Статус: [todo]
-   - Сделано: —
-   - Осталось: все подпункты шага
+   - Статус: [done]
+   - Сделано: `ViewsCore.list/create/get/delete`, `getViewContent`, `addElement`, `addRelation`, операции objects/* (bounds/move/remove), `getViewImage`; делегирование из `ViewsHttpHandler`, `ViewItemHttpHandler`, `LegacyViewContent*`, `LegacyViewAddElement*`
+   - Осталось: —
 4) Search/Folders/Save: миграция
    - `SearchCore`, `FoldersCore`, `ModelSaveCore` (можно как методы в соответствующих классах).
    - Перевести хендлеры.
@@ -119,10 +119,10 @@
   - Сделано: краткий список подпунктов
   - Осталось: краткий список подпунктов с владельцем/блокерами при наличии
 - Пример:
-  - Шаг 2 (Elements/Relations):
-    - Статус: [partial]
-    - Сделано: `ElementsCore.create/update/delete`, делегирование из `ElementsHttpHandler`
-    - Осталось: `listRelations`, делегирование для `ElementItemHttpHandler` (relations), негативные тесты ядра
+    - Шаг 2 (Elements/Relations):
+      - Статус: [partial]
+      - Сделано: `ElementsCore.create/get/update/delete/listRelations`, делегирование из `ElementsHttpHandler` и `ElementItemHttpHandler`; `RelationsCore.create/get/update/delete`, делегирование из `RelationsHttpHandler` и `RelationItemHttpHandler`
+      - Осталось: негативные тесты ядра
 
 # DoD:
 - Все REST‑эндпоинты используют общий ядровой слой; поведение и контракты не изменены.

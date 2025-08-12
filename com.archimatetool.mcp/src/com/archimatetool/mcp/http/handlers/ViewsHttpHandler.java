@@ -1,40 +1,41 @@
 package com.archimatetool.mcp.http.handlers;
 
 import java.io.IOException;
-import java.util.Map;
-import java.util.stream.Collectors;
 
+import com.archimatetool.mcp.core.errors.CoreException;
+import com.archimatetool.mcp.core.types.CreateViewCmd;
+import com.archimatetool.mcp.core.views.ViewsCore;
 import com.archimatetool.mcp.http.ResponseUtil;
 import com.archimatetool.mcp.json.JsonReader;
-import com.archimatetool.mcp.server.ModelApi;
-import com.archimatetool.mcp.service.ServiceRegistry;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
+/** HTTP handler for collection of views. */
 public class ViewsHttpHandler implements HttpHandler {
+    private final ViewsCore core = new ViewsCore();
+
     @Override
     public void handle(HttpExchange exchange) throws IOException {
         String method = exchange.getRequestMethod();
         if ("GET".equalsIgnoreCase(method)) {
-        var model = ServiceRegistry.activeModel().getActiveModel();
-            if (model == null) { ResponseUtil.conflictNoActiveModel(exchange); return; }
-            var views = com.archimatetool.mcp.server.ModelApi.listViews(model).stream().map(ModelApi::viewToDto).collect(Collectors.toList());
-            ResponseUtil.ok(exchange, views);
+            try {
+                var views = core.listViews();
+                ResponseUtil.ok(exchange, views);
+            } catch (CoreException ex) {
+                ResponseUtil.handleCoreException(exchange, ex);
+            }
             return;
         } else if ("POST".equalsIgnoreCase(method)) {
             JsonReader jr = JsonReader.fromExchange(exchange);
-            String type = jr.optString("type");
-            String name = jr.optString("name");
-            if (type == null || name == null) { ResponseUtil.badRequest(exchange, "type and name required"); return; }
-            if (!type.toLowerCase().contains("archimate")) { ResponseUtil.json(exchange, 400, Map.of("error","only archimate view supported in MVP")); return; }
-        var model = com.archimatetool.mcp.service.ServiceRegistry.activeModel().getActiveModel();
-            if (model == null) { ResponseUtil.conflictNoActiveModel(exchange); return; }
-            var view = ServiceRegistry.views().createArchimateView(model, name);
-            ResponseUtil.created(exchange, ModelApi.viewToDto(view));
+            CreateViewCmd cmd = new CreateViewCmd(jr.optString("type"), jr.optString("name"));
+            try {
+                var dto = core.createView(cmd);
+                ResponseUtil.created(exchange, dto);
+            } catch (CoreException ex) {
+                ResponseUtil.handleCoreException(exchange, ex);
+            }
             return;
         }
         ResponseUtil.methodNotAllowed(exchange);
     }
 }
-
-
