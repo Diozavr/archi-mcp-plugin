@@ -133,5 +133,25 @@
 - Риск: регресс по HTTP‑кодам/сообщениям — смягчается e2e‑smoke и тестами хендлеров.
 - Роллбэк: вернуть прежние реализации в хендлерах; ядровые классы оставить выключенными.
 
+## Follow-up: внешние зависимости (Archi/SWT)
+
+Бинарные библиотеки Archi и Eclipse SWT не хранятся в git. Для локальных сборок их можно
+скачать и распаковать командой:
+
+```bash
+ARCHI_URL="https://www.archimatetool.com/downloads/Archi-Linux64-5.0.0.tgz" # исправьте под нужную ОС/версию
+curl -L -o /tmp/archi.tgz "$ARCHI_URL"
+mkdir -p /tmp/archi && tar -xzf /tmp/archi.tgz -C /tmp/archi --strip-components=1
+mkdir -p com.archimatetool.mcp/lib
+cp /tmp/archi/plugins/com.archimatetool.model_*.jar \
+   /tmp/archi/plugins/org.eclipse.core.runtime_*.jar \
+   /tmp/archi/plugins/org.eclipse.equinox.common_*.jar \
+   /tmp/archi/plugins/org.eclipse.emf.ecore_*.jar \
+   /tmp/archi/plugins/org.eclipse.emf.common_*.jar \
+   /tmp/archi/plugins/org.eclipse.swt*.jar \
+   com.archimatetool.mcp/lib/
+```
+
+В репозитории отслеживаются только библиотеки Jackson; скачанные JAR-файлы Archi/SWT остаются локальными.
 
 
