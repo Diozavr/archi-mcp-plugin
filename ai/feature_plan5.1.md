@@ -82,11 +82,11 @@
    - Сделано: `ViewsCore.list/create/get/delete`, `getViewContent`, `addElement`, `addRelation`, операции objects/* (bounds/move/remove), `getViewImage`; делегирование из `ViewsHttpHandler`, `ViewItemHttpHandler`, `LegacyViewContent*`, `LegacyViewAddElement*`
    - Осталось: —
 4) Search/Folders/Save: миграция
-   - `SearchCore`, `FoldersCore`, `ModelSaveCore` (можно как методы в соответствующих классах).
+   - `SearchCore`, `FoldersCore`, `ModelCore` (можно как методы в соответствующих классах).
    - Перевести хендлеры.
-   - Статус: [todo]
-   - Сделано: —
-   - Осталось: все подпункты шага
+   - Статус: [done]
+   - Сделано: `SearchCore.search`, `FoldersCore.listFolders/ensureFolder`, `ModelCore.saveModel`; делегирование из `SearchHttpHandler`, `FoldersHttpHandler`, `FolderEnsureHttpHandler`, `ModelSaveHttpHandler`
+   - Осталось: —
 5) MCP контроллер (подготовка)
    - Ввести `JsonRpcHttpHandler` (контур, без полного набора методов) — делегация в ядро.
    - Список методов MCP строится на базе тех же `*Cmd/*Query` и DTO.
