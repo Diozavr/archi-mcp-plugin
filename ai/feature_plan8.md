@@ -6,11 +6,11 @@
 
 —
 
-Инварианты (см. текущий `AGENTS.md`):
+Инварианты (см. текущий `AGENTS.md` и состояние проекта):
 - По умолчанию слушаем только `127.0.0.1:8765` (локально).
 - Любые операции с EMF/SWT — через `Display.getDefault().syncExec(...)`.
 - Источник правды по REST — `resources/openapi.json` (синхронизируем описания MCP‑инструментов при изменениях).
-- Тесты располагаем под `com.archimatetool.mcp/test` внутри плагина.
+- Юнит‑тесты уже располагаются под `com.archimatetool.mcp/test` внутри плагина (JUnit без запуска Archi). Интеграционные тест‑данные (модели) пока отсутствуют — добавим при необходимости в отдельную папку.
 
 —
 
@@ -20,10 +20,10 @@
 - Структура разделов (скелет):
   1) Обзор и целевая аудитория (автономные агенты, CI, контейнеры)
   2) Требования окружения (JDK 17; без требований к WSL/GUI)
-  3) Headless‑сборка (Maven Tycho + target platform Archi 5.x; офлайн‑режим — рекомендации по локальному p2‑репозиторию)
-  4) Headless‑приложение MCP (CLI‑запуск Archi: `-application com.archimatetool.mcp.headless -nosplash -consoleLog`)
+  3) Headless‑сборка (Maven Tycho + target platform Archi 5.x; офлайн‑режим — рекомендации по локальному p2‑репозиторию). Примечание: Tycho‑скрипты ещё не добавлены — вынести в отдельную фичу.
+  4) Headless‑приложение MCP (CLI‑запуск Archi: `-application com.archimatetool.mcp.headless -nosplash -consoleLog`). Примечание: на данный момент в плагине отсутствует headless‑`Application`; требуется отдельная фича для его добавления.
   5) Конфигурация (переменные/свойства: `archi.mcp.port`, `ARCHI_MCP_PORT` и пр.)
-  6) Тестовые данные (расположение `.archimate` под `com.archimatetool.mcp/testdata`)
+  6) Тестовые данные (создать папку `com.archimatetool.mcp/testdata` и положить туда `.archimate` для интеграционных проверок)
   7) Интеграционные проверки (REST/MCP): примеры вызовов curl, сценарии smoke
   8) Логи и артефакты (stdout + файл лога; как сохранять в CI)
   9) Офлайн‑режим (как провизионить target platform и зависимости без интернета)
@@ -35,13 +35,14 @@
 - Формулировка не должна менять существующие инварианты; лишь указывает альтернативный документ для автономных сценариев.
 
 Шаг 3. Проверка предпосылок в коде/сборке
-- Если headless‑приложение ещё не добавлено: запланировать в отдельной фиче (или кратко указать зависимость) добавление `org.eclipse.core.runtime.applications` → `com.archimatetool.mcp.headless` (класс `MCPHeadlessApplication`).
-- Уточнить, что инструкция опирается на существующие/планируемые шаги: Tycho‑сборка, интеграционные скрипты, тестовая модель.
+- Headless‑приложение в плагине отсутствует — нужна отдельная фича: добавить `org.eclipse.core.runtime.applications` → `com.archimatetool.mcp.headless` (класс `MCPHeadlessApplication`), стартующий `HttpServerRunner` без UI.
+- Tycho‑сборка отсутствует — вынести в отдельную фичу: Tycho parent/p2 target, офлайн‑кеш.
+- Интеграционные тест‑данные (модели) отсутствуют — создать `com.archimatetool.mcp/testdata` и положить пример.
 
 Шаг 4. Smoke‑проверки инструкции (OS‑агностично)
 - В документ добавить минимальный набор команд:
-  - Сборка: `mvn -B -Dtycho.localArtifacts=ignore clean verify`
-  - Запуск Archi headless c нашим appId и портом (пример для Linux‑образа):
+  - Сборка (после добавления Tycho): `mvn -B -Dtycho.localArtifacts=ignore clean verify`
+  - Запуск Archi headless c нашим appId и портом (после добавления headless‑Application; пример для Linux‑образа):
     ```bash
     /opt/archi/Archi -nosplash -consoleLog \
       -application com.archimatetool.mcp.headless \
@@ -57,7 +58,7 @@
 Шаг 6. Критерии готовности (DoD)
 - `AUTONOMOUS_AGENTS.md` добавлен, структурирован и самодостаточен.
 - В `AGENTS.md` есть заметная ссылка в самом верху.
-- Указанные команды воспроизводимы в контейнерной/CI‑среде без UI и без WSL.
+- Команды, зависящие от headless‑Application и Tycho, помечены как «после реализации»; базовые разделы применимы уже сейчас.
 
 Шаг 7. Роллбэк
 - Удалить файл `AUTONOMOUS_AGENTS.md` и блок ссылки из `AGENTS.md`.
