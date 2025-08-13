@@ -50,3 +50,5 @@
   операции над объектами вида, `/views/{id}/image`, `/search`, сценарии ошибок и уборку.
   Перед запуском откройте тестовую модель `testdata/Archisurance.archimate` в Archi или
   обеспечьте активную модель.
+- `tools/list` описания параметров должны соответствовать `resources/openapi.json`.
+- Для MCP существует отдельный smoke‑тест `com.archimatetool.mcp/test/test_mcp_smoke.sh`.
