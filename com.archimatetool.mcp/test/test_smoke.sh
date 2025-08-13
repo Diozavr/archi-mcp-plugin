@@ -66,6 +66,13 @@ run "GET /openapi.json" curl_json "${BASE}/openapi.json"
 # 3) Types
 run "GET /types" curl_json "${BASE}/types"
 
+# MCP JSON-RPC
+run "RPC tools/list" curl_json -X POST -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' "${BASE}/mcp"
+run "RPC status" curl_json -X POST -d '{"jsonrpc":"2.0","id":2,"method":"status"}' "${BASE}/mcp"
+run "RPC method not found" curl_json -X POST -d '{"jsonrpc":"2.0","id":3,"method":"bogus.method"}' "${BASE}/mcp"
+code=$("$CURL_BIN" -s -o /dev/null -w "%{http_code}" -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","method":"status"}' "${BASE}/mcp")
+if [ "$code" != "204" ]; then echo "[SMOKE] Expected 204 for notification, got $code"; fi
+
 # 4) Folders (may be 409 when no active model)
 code=$("$CURL_BIN" -s -o /dev/null -w "%{http_code}" "${BASE}/folders")
 if [ "$code" = "409" ]; then

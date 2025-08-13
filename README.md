@@ -25,6 +25,26 @@ curl -s http://127.0.0.1:8765/status
   `GET /views/{id}/image?format=png|svg`, `PATCH /views/{id}/objects/{objectId}/bounds`
 - Legacy: `GET /views/content?id=...`, `POST /views/add-element`
 
+## MCP JSON-RPC
+- Эндпоинт: `POST /mcp` (JSON-RPC 2.0).
+- Пример вызова списка инструментов:
+  ```bash
+  curl -s -X POST http://127.0.0.1:8765/mcp \
+    -H 'Content-Type: application/json' \
+    -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq .
+  ```
+- Ошибки маппятся на коды JSON-RPC (`-32001` BadRequest, `-32004` NotFound и т.д.).
+- Уведомления (запросы без `id`) возвращают `HTTP 204` без тела.
+- Бинарные данные (например, изображение вида) выдаются в полях `data_base64` + `content_type`.
+
+### Пример `.cursor/mcp.json`
+```json
+{
+  "url": "http://127.0.0.1:8765/mcp",
+  "caps": []
+}
+```
+
 ## Архитектура
 - Вход: `com.archimatetool.mcp.Activator` → `HttpServerRunner` (com.sun.net.httpserver)
 - Модель: `ModelApi` (создание/удаление/поиск, DTO, bounds, сохранение)
