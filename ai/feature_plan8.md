@@ -12,6 +12,10 @@
 - Источник правды по REST — `resources/openapi.json` (синхронизируем описания MCP‑инструментов при изменениях).
 - Юнит‑тесты уже располагаются под `com.archimatetool.mcp/test` внутри плагина (JUnit без запуска Archi). Интеграционные тест‑данные (модели) пока отсутствуют — добавим при необходимости в отдельную папку.
 
+Предупреждение (важно для автономных агентов):
+- Некоторые агенты (например, Codex) не могут делать коммиты, если они содержат бинарные файлы. План и инструкция должны избегать необходимости добавлять/изменять бинарники в коммитах.
+- Следствия: новые зависимости, иконки, тестовые модели и иные бинарные артефакты должны подключаться без включения самих бинарников в коммиты, либо обрабатываться отдельным (неагентным) шагом.
+
 —
 
 Шаг 1. Создать документ `AUTONOMOUS_AGENTS.md`
@@ -30,6 +34,18 @@
   10) Контейнер/CI (пример Dockerfile/скрипта; шаги pipeline)
   11) Troubleshooting (типовые ошибки биндинга порта, отсутствие активной модели и т.д.)
 
+  Раздел «Ограничение на бинарные коммиты и стратегии обхода» (обязателен):
+  - Зависимости/библиотеки: 
+    - использовать Tycho/p2‑репозитории (Orbit/Maven Central OSGi bundles) — агент вносит только текстовые изменения (POM/target), бинарники подкачиваются на сборке;
+    - для офлайн‑сборки — вынести бинарный зеркальный p2 в отдельный репозиторий/сабмодуль; агент обновляет только ссылку/ревизию субмодуля.
+  - Медиа/иконки:
+    - по возможности использовать SVG (текст) и генерировать/конвертировать в PNG на этапе сборки;
+    - либо оставлять плейсхолдеры и фиксировать задачу на последующий ручной коммит бинарников.
+  - Тестовые модели:
+    - генерировать модель программно в тестах/скриптах (текстовые фикстуры JSON → создание через REST/MCP);
+    - либо хранить в отдельном репозитории (субмодуль) и подтягивать в CI.
+  - Git LFS (опционально): использовать, если инфраструктура проекта это поддерживает; агент коммитит текстовые LFS‑пойнтеры, а загрузка бинарников выполняется вне агента.
+
 Шаг 2. Ссылка из `AGENTS.md`
 - В начало `archi-mcp-plugin/AGENTS.md` вставить короткий блок «Если запускаете в автономной среде… см. `AUTONOMOUS_AGENTS.md`».
 - Формулировка не должна менять существующие инварианты; лишь указывает альтернативный документ для автономных сценариев.
@@ -38,6 +54,12 @@
 - Headless‑приложение в плагине отсутствует — нужна отдельная фича: добавить `org.eclipse.core.runtime.applications` → `com.archimatetool.mcp.headless` (класс `MCPHeadlessApplication`), стартующий `HttpServerRunner` без UI.
 - Tycho‑сборка отсутствует — вынести в отдельную фичу: Tycho parent/p2 target, офлайн‑кеш.
 - Интеграционные тест‑данные (модели) отсутствуют — создать `com.archimatetool.mcp/testdata` и положить пример.
+
+Стратегии с учётом бинарного ограничения (внедрить параллельно):
+- Перевести зависимости на p2/Tycho (Orbit) — убрать `lib/*.jar` из будущих изменений; не требуются бинарные коммиты.
+- Для офлайна — добавить отдельный репозиторий `archi-mcp-binaries` (p2 mirror) и подключить как git‑submodule; агент меняет только ревизию субмодуля.
+- Для тестовых моделей — предпочесть генерацию из текстовых фикстур; альтернативно — submodule.
+- Для иконок — SVG в репо (текст), конверсия на сборке; новые PNG добавлять вручную (человеком) отдельным PR.
 
 Шаг 4. Smoke‑проверки инструкции (OS‑агностично)
 - В документ добавить минимальный набор команд:
@@ -63,5 +85,86 @@
 Шаг 7. Роллбэк
 - Удалить файл `AUTONOMOUS_AGENTS.md` и блок ссылки из `AGENTS.md`.
 - Остальная документация остаётся без изменений.
+
+
+Приложение A. Tycho/p2/Orbit — минимальная инструкция (без бинарных коммитов)
+
+- Цель: убрать `lib/*.jar` и собирать плагин против целевой платформы Eclipse/Archi, подтягивая бандлы из p2‑репозиториев (Orbit/Archi/зеркало).
+
+- Структура Maven (пример):
+  - root `pom.xml` (packaging `pom`) с Tycho и общими настройками
+  - модуль `com.archimatetool.mcp` (packaging `eclipse-plugin`)
+  - модуль `target-platform` (опционально, `eclipse-target-definition`), или inline target в root POM
+
+- Плагины Tycho (root POM):
+  - `org.eclipse.tycho:tycho-maven-plugin`
+  - `org.eclipse.tycho:tycho-compiler-plugin`
+  - `org.eclipse.tycho:target-platform-configuration`
+
+- Target Platform (варианты):
+  1) Отдельный `.target` файл с p2‑сайтом Eclipse + Orbit + локальный p2 Archi 5.x mirror.
+  2) Inline в POM (коротко): указать p2‑репозитории в `target-platform-configuration`.
+
+- P2 источники (примеры URL — заменить на актуальные):
+  - Eclipse release: `https://download.eclipse.org/releases/2024-xx/`
+  - Eclipse Orbit: `https://download.eclipse.org/tools/orbit/downloads/drops/R20240520194045/repository`
+  - Локальный mirror Archi 5.x: `file:${project.basedir}/p2/archi-5.x` (см. «p2 mirror» ниже)
+
+- Конфигурация target (inline‑пример):
+```xml
+<plugin>
+  <groupId>org.eclipse.tycho</groupId>
+  <artifactId>target-platform-configuration</artifactId>
+  <version>${tycho.version}</version>
+  <configuration>
+    <environments>
+      <environment>
+        <os>linux</os><ws>gtk</ws><arch>x86_64</arch>
+      </environment>
+    </environments>
+    <resolver>p2</resolver>
+    <repositories>
+      <repository>
+        <id>eclipse-release</id>
+        <layout>p2</layout>
+        <url>https://download.eclipse.org/releases/2024-06/</url>
+      </repository>
+      <repository>
+        <id>orbit</id>
+        <layout>p2</layout>
+        <url>https://download.eclipse.org/tools/orbit/downloads/drops/R20240520194045/repository</url>
+      </repository>
+      <repository>
+        <id>archi-local</id>
+        <layout>p2</layout>
+        <url>file:${project.basedir}/p2/archi-5.x</url>
+      </repository>
+    </repositories>
+  </configuration>
+  <dependencies>
+    <dependency>
+      <groupId>org.eclipse.tycho.extras</groupId>
+      <artifactId>tycho-p2-extras-plugin</artifactId>
+      <version>${tycho.extras.version}</version>
+    </dependency>
+  </dependencies>
+</plugin>
+```
+
+- Требуемые импорты вместо `lib/*.jar`:
+  - В `MANIFEST.MF` оставить `Require-Bundle`/`Import-Package` для нужных пакетов (например, `com.sun.net.httpserver` идёт из JDK; Jackson/другие — из Orbit при переходе).
+  - Убрать `Bundle-ClassPath: lib/...` для внешних .jar, если замещены p2‑бандлами.
+
+- P2 mirror для офлайна:
+  - Создайте mirror нужных сайтов (Eclipse, Orbit, Archi 5.x) с помощью `tycho-p2-extras:mirror` или `p2.mirror` (Eclipse director).
+  - Сохраните mirror в каталоге `p2/archi-5.x` (или внешнем репозитории/субмодуле) — в коммит идут только метаданные p2 (но обычно это тоже бинарные артефакты). Рекомендация: хранить mirror в отдельном репозитории (submodule), агент меняет только ревизию.
+
+- Команда сборки:
+  - Онлайн: `mvn -B -Dtycho.localArtifacts=ignore clean verify`
+  - Офлайн (при наличии mirror и локального Maven repo): `mvn -B -o clean verify`
+
+- Тестирование:
+  - Текущие JUnit‑тесты из `com.archimatetool.mcp/test` продолжат выполняться как часть сборки плагина.
+  - OSGi‑тесты можно добавить отдельным модулем `eclipse-test-plugin` и запускать через `tycho-surefire-plugin` (опционально).
 
 
