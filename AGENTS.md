@@ -53,7 +53,9 @@
 
 ## MCP JSON-RPC
 - Эндпоинт: `POST /mcp` (JSON-RPC 2.0, только localhost).
-- Запрос: `{ "jsonrpc":"2.0", "id":1, "method":"tools/list", "params":{...} }`.
+- Методы протокола: `initialize`, `notifications/initialized`, `tools/list`, `tools/call`.
+- Запрос: `{ "jsonrpc":"2.0", "id":1, "method":"tools/list", "params":{} }`.
+- Вызов инструмента: `{ "jsonrpc":"2.0", "id":2, "method":"tools/call", "params":{"name":"status","args":{}} }`.
 - Успех: `{ "jsonrpc":"2.0", "id":1, "result":{...} }`.
 - Ошибка: `{ "jsonrpc":"2.0", "id":1, "error":{"code":-32004,"message":"..."} }`.
 - Уведомления (без `id`) возвращают HTTP 204 без тела.

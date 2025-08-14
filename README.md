@@ -27,11 +27,18 @@ curl -s http://127.0.0.1:8765/status
 
 ## MCP JSON-RPC
 - Эндпоинт: `POST /mcp` (JSON-RPC 2.0).
+- Поддерживаются методы `initialize`, `notifications/initialized`, `tools/list`, `tools/call`.
 - Пример вызова списка инструментов:
   ```bash
   curl -s -X POST http://127.0.0.1:8765/mcp \
     -H 'Content-Type: application/json' \
-    -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq .
+    -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | jq .
+  ```
+- Пример вызова инструмента:
+  ```bash
+  curl -s -X POST http://127.0.0.1:8765/mcp \
+    -H 'Content-Type: application/json' \
+    -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"status","args":{}}}' | jq .
   ```
 - Ошибки маппятся на коды JSON-RPC (`-32001` BadRequest, `-32004` NotFound и т.д.).
 - Уведомления (запросы без `id`) возвращают `HTTP 204` без тела.
