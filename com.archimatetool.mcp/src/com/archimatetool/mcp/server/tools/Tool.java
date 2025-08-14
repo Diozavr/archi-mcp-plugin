@@ -45,6 +45,7 @@ public class Tool {
             m.put("description", description);
         }
         Map<String, Object> schema = new HashMap<>();
+        schema.put("$schema", "http://json-schema.org/draft-07/schema#");
         schema.put("type", "object");
         Map<String, Object> props = new LinkedHashMap<>();
         List<String> required = new ArrayList<>();
@@ -57,13 +58,25 @@ public class Tool {
             if (tp.getDefaultValue() != null) {
                 p.put("default", tp.getDefaultValue());
             }
+            // Provide minimal sub-schemas for complex types to satisfy strict validators
+            if ("array".equals(tp.getType())) {
+                // Default to array of strings if not otherwise specified
+                Map<String, Object> items = new HashMap<>();
+                items.put("type", "string");
+                p.put("items", items);
+            } else if ("object".equals(tp.getType())) {
+                p.put("properties", new LinkedHashMap<String, Object>());
+                p.put("additionalProperties", Boolean.TRUE);
+            }
             props.put(tp.getName(), p);
             if (tp.isRequired()) {
                 required.add(tp.getName());
             }
         }
         schema.put("properties", props);
-        schema.put("required", required);
+        if (!required.isEmpty()) {
+            schema.put("required", required);
+        }
         schema.put("additionalProperties", Boolean.FALSE);
         m.put("inputSchema", schema);
         return m;

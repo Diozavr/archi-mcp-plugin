@@ -141,6 +141,13 @@ public class JsonRpcHttpHandler implements HttpHandler {
                 Map<String, Object> payload = Map.of("resources", Collections.emptyList());
                 return isNotification ? null : success(idNode, payload);
             }
+            case "logging/setLevel": {
+                // Accept and echo requested level; default to "info"
+                Object lvl = params.get("level");
+                String level = lvl instanceof String ? (String) lvl : "info";
+                Map<String, Object> payload = Map.of("level", level);
+                return isNotification ? null : success(idNode, payload);
+            }
             default:
                 return isNotification ? null : error(idNode, -32601, "method '" + method + "' not found", null);
         }
