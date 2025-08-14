@@ -11,7 +11,6 @@ import java.util.Map;
 import com.archimatetool.mcp.core.elements.ElementsCore;
 import com.archimatetool.mcp.core.folders.FoldersCore;
 import com.archimatetool.mcp.core.model.ModelCore;
-import com.archimatetool.mcp.core.relations.RelationsCore;
 import com.archimatetool.mcp.core.search.SearchCore;
 import com.archimatetool.mcp.core.types.*;
 import com.archimatetool.mcp.core.views.ViewsCore;
@@ -22,77 +21,29 @@ import com.archimatetool.mcp.core.views.ViewsCore;
 public class ToolRegistry {
     private static final Map<String, Tool> TOOLS = new LinkedHashMap<>();
     private static final ElementsCore elementsCore = new ElementsCore();
-    private static final RelationsCore relationsCore = new RelationsCore();
     private static final ViewsCore viewsCore = new ViewsCore();
     private static final FoldersCore foldersCore = new FoldersCore();
     private static final SearchCore searchCore = new SearchCore();
     private static final ModelCore modelCore = new ModelCore();
 
     static {
-        // tools/list
-        register(new Tool(
-            "tools/list",
-            "List all available tools",
-            Collections.emptyList(),
-            params -> describeAll()
-        ));
         // status
         register(new Tool(
             "status",
             "Service status",
             Collections.emptyList(),
-            params -> Map.of(
-                "ok", Boolean.TRUE,
-                "service", "archi-mcp",
-                "version", "0.1.0"
-            )
+            params -> Map.of("ok", Boolean.TRUE, "service", "Archi MCP")
         ));
-        // types
+        // list_views
         register(new Tool(
-            "types",
-            "List model types",
-            Collections.emptyList(),
-            params -> {
-                var pkg = com.archimatetool.model.IArchimatePackage.eINSTANCE;
-                var elementTypes = pkg.getEClassifiers().stream()
-                    .filter(c -> c instanceof org.eclipse.emf.ecore.EClass && pkg.getArchimateElement().isSuperTypeOf((org.eclipse.emf.ecore.EClass) c))
-                    .map(c -> ((org.eclipse.emf.ecore.EClass) c).getName()).collect(java.util.stream.Collectors.toList());
-                var relationTypes = pkg.getEClassifiers().stream()
-                    .filter(c -> c instanceof org.eclipse.emf.ecore.EClass && pkg.getArchimateRelationship().isSuperTypeOf((org.eclipse.emf.ecore.EClass) c))
-                    .map(c -> ((org.eclipse.emf.ecore.EClass) c).getName()).collect(java.util.stream.Collectors.toList());
-                return Map.of(
-                    "elementTypes", elementTypes,
-                    "relationTypes", relationTypes,
-                    "viewTypes", java.util.List.of("ArchimateDiagramModel")
-                );
-            }
-        ));
-        // folders/list
-        register(new Tool(
-            "folders/list",
-            "List top-level folders",
-            Collections.emptyList(),
-            params -> foldersCore.listFolders()
-        ));
-        // folders/ensure
-        register(new Tool(
-            "folders/ensure",
-            "Ensure folder path exists",
-            Arrays.asList(
-                new ToolParam("path", "string", true, "Slash-delimited folder path", null)
-            ),
-            params -> foldersCore.ensureFolder(new EnsureFolderCmd((String) params.get("path")))
-        ));
-        // views/list
-        register(new Tool(
-            "views/list",
+            "list_views",
             "List views",
             Collections.emptyList(),
             params -> viewsCore.listViews()
         ));
-        // views/create
+        // create_view
         register(new Tool(
-            "views/create",
+            "create_view",
             "Create view",
             Arrays.asList(
                 new ToolParam("type", "string", true, "View type in kebab-case", null),
@@ -106,44 +57,74 @@ public class ToolRegistry {
                 return viewsCore.createView(cmd);
             }
         ));
-        // views/get
+        // get_view_content
         register(new Tool(
-            "views/get",
-            "Get view by id",
-            Arrays.asList(
-                new ToolParam("id", "string", true, "View id", null)
-            ),
-            params -> viewsCore.getView(new GetViewQuery((String) params.get("id")))
-        ));
-        // views/delete
-        register(new Tool(
-            "views/delete",
-            "Delete view",
-            Arrays.asList(
-                new ToolParam("id", "string", true, "View id", null)
-            ),
-            params -> {
-                viewsCore.deleteView(new DeleteViewCmd((String) params.get("id")));
-                return Collections.singletonMap("deleted", true);
-            }
-        ));
-        // views/get_content
-        register(new Tool(
-            "views/get_content",
+            "get_view_content",
             "Get view content",
             Arrays.asList(
-                new ToolParam("id", "string", true, "View id", null),
-                new ToolParam("limit", "integer", false, "Limit number of returned objects", null),
-                new ToolParam("offset", "integer", false, "Offset for returned objects", null)
+                new ToolParam("view_id", "string", true, "View id", null)
             ),
-            params -> viewsCore.getViewContent(new GetViewContentQuery((String) params.get("id")))
+            params -> viewsCore.getViewContent(new GetViewContentQuery((String) params.get("view_id")))
         ));
-        // views/get_image
+        // create_element
         register(new Tool(
-            "views/get_image",
+            "create_element",
+            "Create element",
+            Arrays.asList(
+                new ToolParam("type", "string", true, "Element type in kebab-case", null),
+                new ToolParam("name", "string", true, "Element name", null),
+                new ToolParam("folder_id", "string", false, "Target folder id", null)
+            ),
+            params -> {
+                CreateElementCmd cmd = new CreateElementCmd(
+                    (String) params.get("type"),
+                    (String) params.get("name"),
+                    (String) params.get("folder_id")
+                );
+                return elementsCore.createElement(cmd);
+            }
+        ));
+        // add_element_to_view
+        register(new Tool(
+            "add_element_to_view",
+            "Add element to view",
+            Arrays.asList(
+                new ToolParam("view_id", "string", true, "View id", null),
+                new ToolParam("element_id", "string", true, "Element id", null),
+                new ToolParam("parent_object_id", "string", false, "Parent diagram object id", null),
+                new ToolParam("bounds", "object", false, "Bounds {x,y,w,h}", null)
+            ),
+            params -> {
+                @SuppressWarnings("unchecked") Map<String, Object> b = (Map<String, Object>) params.get("bounds");
+                Integer x = b != null && b.get("x") instanceof Number ? ((Number) b.get("x")).intValue() : null;
+                Integer y = b != null && b.get("y") instanceof Number ? ((Number) b.get("y")).intValue() : null;
+                Integer w = b != null && b.get("w") instanceof Number ? ((Number) b.get("w")).intValue() : null;
+                Integer h = b != null && b.get("h") instanceof Number ? ((Number) b.get("h")).intValue() : null;
+                AddElementToViewCmd cmd = new AddElementToViewCmd(
+                    (String) params.get("view_id"),
+                    (String) params.get("element_id"),
+                    (String) params.get("parent_object_id"),
+                    x, y, w, h
+                );
+                return viewsCore.addElement(cmd);
+            }
+        ));
+        // save_model
+        register(new Tool(
+            "save_model",
+            "Save model",
+            Arrays.asList(
+                new ToolParam("model_id", "string", false, "Model id", null),
+                new ToolParam("create_backup", "boolean", false, "Create .bak file", Boolean.TRUE)
+            ),
+            params -> modelCore.saveModel()
+        ));
+        // get_view_image
+        register(new Tool(
+            "get_view_image",
             "Get view image",
             Arrays.asList(
-                new ToolParam("id", "string", true, "View id", null),
+                new ToolParam("view_id", "string", true, "View id", null),
                 new ToolParam("format", "string", false, "png or svg", "png"),
                 new ToolParam("scale", "number", false, "Scale factor", 1.0),
                 new ToolParam("dpi", "integer", false, "DPI for png", null),
@@ -154,7 +135,7 @@ public class ToolRegistry {
                 Double scaleD = params.get("scale") instanceof Number ? ((Number) params.get("scale")).doubleValue() : null;
                 Integer marginI = params.get("margin") instanceof Number ? ((Number) params.get("margin")).intValue() : null;
                 GetViewImageQuery q = new GetViewImageQuery(
-                    (String) params.get("id"),
+                    (String) params.get("view_id"),
                     (String) params.get("format"),
                     scaleD == null ? null : scaleD.floatValue(),
                     (Integer) params.get("dpi"),
@@ -170,276 +151,6 @@ public class ToolRegistry {
                 );
             }
         ));
-        // views/add_element
-        register(new Tool(
-            "views/add_element",
-            "Add element to view",
-            Arrays.asList(
-                new ToolParam("id", "string", true, "View id", null),
-                new ToolParam("element_id", "string", true, "Element id", null),
-                new ToolParam("parent_object_id", "string", false, "Parent diagram object id", null),
-                new ToolParam("bounds", "object", true, "Bounds {x,y,w,h}", null)
-            ),
-            params -> {
-                @SuppressWarnings("unchecked") Map<String, Object> b = (Map<String, Object>) params.get("bounds");
-                Integer x = b != null && b.get("x") instanceof Number ? ((Number) b.get("x")).intValue() : null;
-                Integer y = b != null && b.get("y") instanceof Number ? ((Number) b.get("y")).intValue() : null;
-                Integer w = b != null && b.get("w") instanceof Number ? ((Number) b.get("w")).intValue() : null;
-                Integer h = b != null && b.get("h") instanceof Number ? ((Number) b.get("h")).intValue() : null;
-                AddElementToViewCmd cmd = new AddElementToViewCmd(
-                    (String) params.get("id"),
-                    (String) params.get("element_id"),
-                    (String) params.get("parent_object_id"),
-                    x, y, w, h
-                );
-                return viewsCore.addElement(cmd);
-            }
-        ));
-        // views/add_relation
-        register(new Tool(
-            "views/add_relation",
-            "Add relation to view",
-            Arrays.asList(
-                new ToolParam("id", "string", true, "View id", null),
-                new ToolParam("relation_id", "string", true, "Relation id", null),
-                new ToolParam("source_object_id", "string", false, "Source diagram object id", null),
-                new ToolParam("target_object_id", "string", false, "Target diagram object id", null),
-                new ToolParam("policy", "string", false, "Connection policy", "auto"),
-                new ToolParam("suppress_when_nested", "boolean", false, "Suppress when nested", true)
-            ),
-            params -> {
-                AddRelationToViewCmd cmd = new AddRelationToViewCmd(
-                    (String) params.get("id"),
-                    (String) params.get("relation_id"),
-                    (String) params.get("source_object_id"),
-                    (String) params.get("target_object_id"),
-                    (Boolean) params.get("suppress_when_nested"),
-                    (String) params.get("policy")
-                );
-                return viewsCore.addRelation(cmd);
-            }
-        ));
-        // views/update_bounds
-        register(new Tool(
-            "views/update_bounds",
-            "Update object bounds",
-            Arrays.asList(
-                new ToolParam("id", "string", true, "View id", null),
-                new ToolParam("object_id", "string", true, "Diagram object id", null),
-                new ToolParam("x", "integer", false, "X position", null),
-                new ToolParam("y", "integer", false, "Y position", null),
-                new ToolParam("w", "integer", false, "Width", null),
-                new ToolParam("h", "integer", false, "Height", null)
-            ),
-            params -> {
-                UpdateViewObjectBoundsCmd cmd = new UpdateViewObjectBoundsCmd(
-                    (String) params.get("id"),
-                    (String) params.get("object_id"),
-                    (Integer) params.get("x"),
-                    (Integer) params.get("y"),
-                    (Integer) params.get("w"),
-                    (Integer) params.get("h")
-                );
-                return viewsCore.updateBounds(cmd);
-            }
-        ));
-        // views/move_object
-        register(new Tool(
-            "views/move_object",
-            "Move object to container",
-            Arrays.asList(
-                new ToolParam("id", "string", true, "View id", null),
-                new ToolParam("object_id", "string", true, "Diagram object id", null),
-                new ToolParam("parent_object_id", "string", true, "Target parent diagram object id", null),
-                new ToolParam("bounds", "object", false, "Optional bounds {x,y,w,h}", null)
-            ),
-            params -> {
-                @SuppressWarnings("unchecked") Map<String, Object> b = (Map<String, Object>) params.get("bounds");
-                Integer x = b != null && b.get("x") instanceof Number ? ((Number) b.get("x")).intValue() : null;
-                Integer y = b != null && b.get("y") instanceof Number ? ((Number) b.get("y")).intValue() : null;
-                Integer w = b != null && b.get("w") instanceof Number ? ((Number) b.get("w")).intValue() : null;
-                Integer h = b != null && b.get("h") instanceof Number ? ((Number) b.get("h")).intValue() : null;
-                MoveViewObjectCmd cmd = new MoveViewObjectCmd(
-                    (String) params.get("id"),
-                    (String) params.get("object_id"),
-                    (String) params.get("parent_object_id"),
-                    x, y, w, h,
-                    null
-                );
-                return viewsCore.moveObject(cmd);
-            }
-        ));
-        // views/remove_object
-        register(new Tool(
-            "views/remove_object",
-            "Remove object from view",
-            Arrays.asList(
-                new ToolParam("id", "string", true, "View id", null),
-                new ToolParam("object_id", "string", true, "Diagram object id", null)
-            ),
-            params -> {
-                viewsCore.deleteObject(new DeleteViewObjectCmd(
-                    (String) params.get("id"),
-                    (String) params.get("object_id")
-                ));
-                return Collections.singletonMap("deleted", true);
-            }
-        ));
-        // elements/create
-        register(new Tool(
-            "elements/create",
-            "Create element",
-            Arrays.asList(
-                new ToolParam("type", "string", true, "Element type in kebab-case", null),
-                new ToolParam("name", "string", true, "Element name", null),
-                new ToolParam("folder_id", "string", false, "Target folder id", null),
-                new ToolParam("properties", "object", false, "Properties map", null),
-                new ToolParam("documentation", "string", false, "Element documentation", null)
-            ),
-            params -> {
-                CreateElementCmd cmd = new CreateElementCmd(
-                    (String) params.get("type"),
-                    (String) params.get("name"),
-                    (String) params.get("folder_id")
-                );
-                return elementsCore.createElement(cmd);
-            }
-        ));
-        // elements/get
-        register(new Tool(
-            "elements/get",
-            "Get element",
-            Arrays.asList(
-                new ToolParam("id", "string", true, "Element id", null),
-                new ToolParam("include", "string", false, "Additional data to include", "relations"),
-                new ToolParam("include_elements", "boolean", false, "Include related elements", false)
-            ),
-            params -> {
-                String include = (String) params.get("include");
-                boolean includeRelations = include != null && include.contains("relations");
-                boolean includeElements = Boolean.TRUE.equals(params.get("include_elements"));
-                GetElementQuery q = new GetElementQuery(
-                    (String) params.get("id"),
-                    includeRelations,
-                    includeElements
-                );
-                return elementsCore.getElement(q);
-            }
-        ));
-        // elements/update
-        register(new Tool(
-            "elements/update",
-            "Update element",
-            Arrays.asList(
-                new ToolParam("id", "string", true, "Element id", null),
-                new ToolParam("name", "string", false, "New name", null),
-                new ToolParam("type", "string", false, "New element type", null),
-                new ToolParam("folder_id", "string", false, "New folder id", null),
-                new ToolParam("properties", "object", false, "Properties map", null),
-                new ToolParam("documentation", "string", false, "Documentation", null)
-            ),
-            params -> {
-                UpdateElementCmd cmd = new UpdateElementCmd(
-                    (String) params.get("id"),
-                    (String) params.get("name")
-                );
-                return elementsCore.updateElement(cmd);
-            }
-        ));
-        // elements/delete
-        register(new Tool(
-            "elements/delete",
-            "Delete element",
-            Arrays.asList(
-                new ToolParam("id", "string", true, "Element id", null)
-            ),
-            params -> {
-                elementsCore.deleteElement(new DeleteElementCmd((String) params.get("id")));
-                return Collections.singletonMap("deleted", true);
-            }
-        ));
-        // elements/list_relations
-        register(new Tool(
-            "elements/list_relations",
-            "List element relations",
-            Arrays.asList(
-                new ToolParam("id", "string", true, "Element id", null),
-                new ToolParam("direction", "string", false, "both|in|out", "both"),
-                new ToolParam("include_elements", "boolean", false, "Include related elements", false)
-            ),
-            params -> {
-                ListElementRelationsQuery q = new ListElementRelationsQuery(
-                    (String) params.get("id"),
-                    (String) params.get("direction"),
-                    Boolean.TRUE.equals(params.get("include_elements"))
-                );
-                return elementsCore.listRelations(q);
-            }
-        ));
-        // relations/create
-        register(new Tool(
-            "relations/create",
-            "Create relation",
-            Arrays.asList(
-                new ToolParam("type", "string", true, "Relation type in kebab-case", null),
-                new ToolParam("source_id", "string", true, "Source element id", null),
-                new ToolParam("target_id", "string", true, "Target element id", null),
-                new ToolParam("name", "string", false, "Relation name", null),
-                new ToolParam("folder_id", "string", false, "Target folder id", null),
-                new ToolParam("properties", "object", false, "Properties map", null),
-                new ToolParam("documentation", "string", false, "Relation documentation", null)
-            ),
-            params -> {
-                CreateRelationCmd cmd = new CreateRelationCmd(
-                    (String) params.get("type"),
-                    (String) params.get("name"),
-                    (String) params.get("source_id"),
-                    (String) params.get("target_id"),
-                    (String) params.get("folder_id")
-                );
-                return relationsCore.createRelation(cmd);
-            }
-        ));
-        // relations/get
-        register(new Tool(
-            "relations/get",
-            "Get relation",
-            Arrays.asList(
-                new ToolParam("id", "string", true, "Relation id", null)
-            ),
-            params -> relationsCore.getRelation(new GetRelationQuery((String) params.get("id")))
-        ));
-        // relations/update
-        register(new Tool(
-            "relations/update",
-            "Update relation",
-            Arrays.asList(
-                new ToolParam("id", "string", true, "Relation id", null),
-                new ToolParam("name", "string", false, "New name", null),
-                new ToolParam("type", "string", false, "New relation type", null),
-                new ToolParam("properties", "object", false, "Properties map", null),
-                new ToolParam("documentation", "string", false, "Documentation", null)
-            ),
-            params -> {
-                UpdateRelationCmd cmd = new UpdateRelationCmd(
-                    (String) params.get("id"),
-                    (String) params.get("name")
-                );
-                return relationsCore.updateRelation(cmd);
-            }
-        ));
-        // relations/delete
-        register(new Tool(
-            "relations/delete",
-            "Delete relation",
-            Arrays.asList(
-                new ToolParam("id", "string", true, "Relation id", null)
-            ),
-            params -> {
-                relationsCore.deleteRelation(new DeleteRelationCmd((String) params.get("id")));
-                return Collections.singletonMap("deleted", true);
-            }
-        ));
         // search
         register(new Tool(
             "search",
@@ -451,12 +162,12 @@ public class ToolRegistry {
                 new ToolParam("relation_type", "string", false, "Filter by relation type", null),
                 new ToolParam("model_id", "string", false, "Restrict to model id", null),
                 new ToolParam("property", "array", false, "key=value filters", null),
-                new ToolParam("include_docs", "boolean", false, "Search in documentation", false),
-                new ToolParam("include_props", "boolean", false, "Search in properties", false),
+                new ToolParam("include_docs", "boolean", false, "Search in documentation", Boolean.FALSE),
+                new ToolParam("include_props", "boolean", false, "Search in properties", Boolean.FALSE),
                 new ToolParam("limit", "integer", false, "Limit results", null),
                 new ToolParam("offset", "integer", false, "Offset results", null),
-                new ToolParam("debug", "boolean", false, "Include debug info", false),
-                new ToolParam("log", "boolean", false, "Log search query", false)
+                new ToolParam("debug", "boolean", false, "Include debug info", Boolean.FALSE),
+                new ToolParam("log", "boolean", false, "Log search query", Boolean.FALSE)
             ),
             params -> {
                 SearchQuery q = new SearchQuery();
@@ -491,15 +202,41 @@ public class ToolRegistry {
                 return searchCore.search(q);
             }
         ));
-        // model/save
+        // types
         register(new Tool(
-            "model/save",
-            "Save model",
+            "types",
+            "List model types",
+            Collections.emptyList(),
+            params -> {
+                var pkg = com.archimatetool.model.IArchimatePackage.eINSTANCE;
+                var elementTypes = pkg.getEClassifiers().stream()
+                    .filter(c -> c instanceof org.eclipse.emf.ecore.EClass && pkg.getArchimateElement().isSuperTypeOf((org.eclipse.emf.ecore.EClass) c))
+                    .map(c -> ((org.eclipse.emf.ecore.EClass) c).getName()).collect(java.util.stream.Collectors.toList());
+                var relationTypes = pkg.getEClassifiers().stream()
+                    .filter(c -> c instanceof org.eclipse.emf.ecore.EClass && pkg.getArchimateRelationship().isSuperTypeOf((org.eclipse.emf.ecore.EClass) c))
+                    .map(c -> ((org.eclipse.emf.ecore.EClass) c).getName()).collect(java.util.stream.Collectors.toList());
+                return Map.of(
+                    "elementTypes", elementTypes,
+                    "relationTypes", relationTypes,
+                    "viewTypes", List.of("ArchimateDiagramModel")
+                );
+            }
+        ));
+        // folders
+        register(new Tool(
+            "folders",
+            "List top-level folders",
+            Collections.emptyList(),
+            params -> foldersCore.listFolders()
+        ));
+        // folder_ensure
+        register(new Tool(
+            "folder_ensure",
+            "Ensure folder path exists",
             Arrays.asList(
-                new ToolParam("model_id", "string", false, "Model id", null),
-                new ToolParam("create_backup", "boolean", false, "Create .bak file", true)
+                new ToolParam("path", "string", true, "Slash-delimited folder path", null)
             ),
-            params -> modelCore.saveModel()
+            params -> foldersCore.ensureFolder(new EnsureFolderCmd((String) params.get("path")))
         ));
     }
 
@@ -523,3 +260,4 @@ public class ToolRegistry {
         return out;
     }
 }
+
