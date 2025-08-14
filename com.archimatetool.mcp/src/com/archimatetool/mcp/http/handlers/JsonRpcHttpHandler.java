@@ -2,6 +2,7 @@ package com.archimatetool.mcp.http.handlers;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -79,30 +80,57 @@ public class JsonRpcHttpHandler implements HttpHandler {
             return isNotification ? null : error(idNode, -32600, "invalid request", null);
         }
         String method = node.path("method").asText();
-        Tool tool = ToolRegistry.get(method);
-        if (tool == null || tool.getInvoker() == null) {
-            return isNotification ? null : error(idNode, -32601, "method '"+method+"' not found", null);
-        }
-        Map<String, Object> params = Collections.emptyMap();
         JsonNode paramsNode = node.get("params");
-        if (paramsNode != null) {
-            if (!paramsNode.isObject()) {
-                return isNotification ? null : error(idNode, -32602, "invalid params", Map.of("error", "params must be object"));
+        Map<String, Object> params = paramsNode != null && paramsNode.isObject()
+                ? JacksonJson.mapper().convertValue(paramsNode, Map.class)
+                : Collections.emptyMap();
+        switch (method) {
+            case "initialize":
+                Map<String, Object> result = Map.of(
+                    "protocolVersion", "2024-11-05",
+                    "serverInfo", Map.of("name", "Archi MCP", "version", "0.1.0"),
+                    "capabilities", Map.of(
+                        "tools", Map.of("listChanged", Boolean.FALSE),
+                        "prompts", Boolean.FALSE,
+                        "resources", Boolean.FALSE,
+                        "logging", Map.of("levels", Arrays.asList("info", "warn", "error"))
+                    )
+                );
+                return isNotification ? null : success(idNode, result);
+            case "notifications/initialized":
+                return isNotification ? null : success(idNode, Collections.emptyMap());
+            case "tools/list":
+                return isNotification ? null : success(idNode, ToolRegistry.describeAll());
+            case "tools/call": {
+                Object nameObj = params.get("name");
+                if (!(nameObj instanceof String)) {
+                    return isNotification ? null : error(idNode, -32602, "invalid params", Map.of("error", "missing name"));
+                }
+                String name = (String) nameObj;
+                @SuppressWarnings("unchecked") Map<String, Object> args = params.get("args") instanceof Map
+                        ? (Map<String, Object>) params.get("args")
+                        : Collections.emptyMap();
+                Tool tool = ToolRegistry.get(name);
+                if (tool == null || tool.getInvoker() == null) {
+                    return isNotification ? null : error(idNode, -32601, "method '" + name + "' not found", null);
+                }
+                try {
+                    args = validateParams(tool, args);
+                } catch (ParamException pe) {
+                    return isNotification ? null
+                            : error(idNode, -32602, "invalid params", Map.of("error", pe.getMessage()));
+                }
+                try {
+                    Object callResult = tool.getInvoker().invoke(args);
+                    return isNotification ? null : success(idNode, callResult);
+                } catch (CoreException ce) {
+                    return isNotification ? null : error(idNode, mapCoreException(ce), ce.getMessage(), null);
+                } catch (Exception ex) {
+                    return isNotification ? null : error(idNode, -32603, "internal error", null);
+                }
             }
-            params = JacksonJson.mapper().convertValue(paramsNode, Map.class);
-        }
-        try {
-            params = validateParams(tool, params);
-        } catch (ParamException pe) {
-            return isNotification ? null : error(idNode, -32602, "invalid params", Map.of("error", pe.getMessage()));
-        }
-        try {
-            Object result = tool.getInvoker().invoke(params);
-            return isNotification ? null : success(idNode, result);
-        } catch (CoreException ce) {
-            return isNotification ? null : error(idNode, mapCoreException(ce), ce.getMessage(), null);
-        } catch (Exception ex) {
-            return isNotification ? null : error(idNode, -32603, "internal error", null);
+            default:
+                return isNotification ? null : error(idNode, -32601, "method '" + method + "' not found", null);
         }
     }
 
