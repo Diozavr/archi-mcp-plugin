@@ -2,20 +2,26 @@ package com.archimatetool.mcp.tests;
 
 import static org.junit.Assert.*;
 
+import java.lang.reflect.Field;
+import java.util.Arrays;
+import java.util.Map;
+
 import org.junit.Test;
 
 import com.archimatetool.mcp.http.handlers.JsonRpcHttpHandler;
 import com.archimatetool.mcp.server.JacksonJson;
+import com.archimatetool.mcp.server.tools.Tool;
+import com.archimatetool.mcp.server.tools.ToolParam;
+import com.archimatetool.mcp.server.tools.ToolRegistry;
 import com.fasterxml.jackson.databind.JsonNode;
-import java.util.Map;
-import com.archimatetool.mcp.core.elements.ElementsCore;
-import com.archimatetool.mcp.core.types.GetElementQuery;
-import com.archimatetool.mcp.core.relations.RelationsCore;
-import com.archimatetool.mcp.core.views.ViewsCore;
-import com.archimatetool.mcp.core.search.SearchCore;
-import com.archimatetool.mcp.core.folders.FoldersCore;
-import com.archimatetool.mcp.core.model.ModelCore;
 
+/**
+ * Unit tests for the minimal JSON-RPC handler.
+ *
+ * The handler is exercised using {@link FakeHttpExchange} to avoid a running
+ * HTTP server. Only protocol-level behaviour is verified; the underlying core
+ * implementations are not exercised.
+ */
 public class JsonRpcHttpHandlerTest {
 
     @Test
@@ -36,7 +42,7 @@ public class JsonRpcHttpHandlerTest {
 
     @Test
     public void testMethodNotFound() throws Exception {
-        String req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"bogus.method\"}";
+        String req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"bogus\"}";
         FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
         new JsonRpcHttpHandler().handle(ex);
         assertEquals(200, ex.getResponseCode());
@@ -46,22 +52,108 @@ public class JsonRpcHttpHandlerTest {
     }
 
     @Test
-    public void testElementsGetHappyPath() throws Exception {
-        class StubElementsCore extends ElementsCore {
-            @Override
-            public Map<String, Object> getElement(GetElementQuery q) {
-                return Map.of("id", q.id, "name", "Dummy");
-            }
-        }
-        JsonRpcHttpHandler handler = new JsonRpcHttpHandler(
-                new StubElementsCore(), new RelationsCore(), new ViewsCore(),
-                new SearchCore(), new FoldersCore(), new ModelCore());
-        String req = "{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"elements.get\",\"params\":{\"id\":\"e1\"}}";
+    public void testNotificationNoContent() throws Exception {
+        String req = "{\"jsonrpc\":\"2.0\",\"method\":\"tools/call\",\"params\":{\"name\":\"status\",\"args\":{}}}";
         FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
-        handler.handle(ex);
+        new JsonRpcHttpHandler().handle(ex);
+        assertEquals(204, ex.getResponseCode());
+        assertEquals("", ex.getResponseString());
+    }
+
+    @Test
+    public void testBatchWithNotification() throws Exception {
+        String req = "[" +
+            "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{}}," +
+            "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}]";
+        FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
+        new JsonRpcHttpHandler().handle(ex);
         assertEquals(200, ex.getResponseCode());
         JsonNode root = JacksonJson.mapper().readTree(ex.getResponseString());
-        assertEquals("e1", root.get("result").get("id").asText());
-        assertEquals(7, root.get("id").asInt());
+        assertTrue(root.isArray());
+        assertEquals(1, root.size());
+        assertEquals(1, root.get(0).get("id").asInt());
+    }
+
+    @Test
+    public void testBatchAllNotifications() throws Exception {
+        String req = "[" +
+            "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}," +
+            "{\"jsonrpc\":\"2.0\",\"method\":\"tools/call\",\"params\":{\"name\":\"status\",\"args\":{}}}]";
+        FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
+        new JsonRpcHttpHandler().handle(ex);
+        assertEquals(204, ex.getResponseCode());
+        assertEquals("", ex.getResponseString());
+    }
+
+    @Test
+    public void testInitialize() throws Exception {
+        String req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"initialize\"}";
+        FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
+        new JsonRpcHttpHandler().handle(ex);
+        assertEquals(200, ex.getResponseCode());
+        JsonNode root = JacksonJson.mapper().readTree(ex.getResponseString());
+        assertEquals("2024-11-05", root.get("result").get("protocolVersion").asText());
+    }
+
+    @Test
+    public void testNotificationsInitialized() throws Exception {
+        String req = "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}";
+        FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
+        new JsonRpcHttpHandler().handle(ex);
+        assertEquals(204, ex.getResponseCode());
+    }
+
+    @Test
+    public void testToolsList() throws Exception {
+        String req = "{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"tools/list\",\"params\":{}}";
+        FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
+        new JsonRpcHttpHandler().handle(ex);
+        assertEquals(200, ex.getResponseCode());
+        JsonNode root = JacksonJson.mapper().readTree(ex.getResponseString());
+        assertTrue(root.get("result").isObject());
+        assertTrue(root.get("result").get("tools").isArray());
+        assertTrue(root.get("result").get("tools").size() > 0);
+    }
+
+    @Test
+    public void testInvalidParams() throws Exception {
+        Field f = ToolRegistry.class.getDeclaredField("TOOLS");
+        f.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<String, Tool> tools = (Map<String, Tool>) f.get(null);
+        tools.put("echo", new Tool(
+            "echo",
+            "Echo back a message",
+            Arrays.asList(new ToolParam("msg", "string", true, "Message to echo", null)),
+            params -> params
+        ));
+        String req = "{\"jsonrpc\":\"2.0\",\"id\":6,\"method\":\"tools/call\",\"params\":{\"name\":\"echo\",\"args\":{}}}"; 
+        FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
+        new JsonRpcHttpHandler().handle(ex);
+        assertEquals(200, ex.getResponseCode());
+        JsonNode root = JacksonJson.mapper().readTree(ex.getResponseString());
+        assertEquals(-32602, root.get("error").get("code").asInt());
+    }
+
+    @Test
+    public void testToolsCallUnknown() throws Exception {
+        String req = "{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"tools/call\",\"params\":{\"name\":\"bogus\",\"args\":{}}}";
+        FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
+        new JsonRpcHttpHandler().handle(ex);
+        assertEquals(200, ex.getResponseCode());
+        JsonNode root = JacksonJson.mapper().readTree(ex.getResponseString());
+        assertEquals(-32601, root.get("error").get("code").asInt());
+    }
+
+    @Test
+    public void testStatusHappyPath() throws Exception {
+        String req = "{\"jsonrpc\":\"2.0\",\"id\":8,\"method\":\"tools/call\",\"params\":{\"name\":\"status\",\"args\":{}}}";
+        FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
+        new JsonRpcHttpHandler().handle(ex);
+        assertEquals(200, ex.getResponseCode());
+        JsonNode root = JacksonJson.mapper().readTree(ex.getResponseString());
+        assertTrue(root.get("result").get("ok").asBoolean());
+        assertEquals(8, root.get("id").asInt());
     }
 }
+
