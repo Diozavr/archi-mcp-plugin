@@ -13,6 +13,8 @@ import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPreferencePage;
 import org.eclipse.ui.preferences.ScopedPreferenceStore;
+import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.Status;
 
 import com.archimatetool.mcp.Activator;
 import com.archimatetool.mcp.Config;
@@ -68,7 +70,11 @@ public class MCPPreferencePage extends FieldEditorPreferencePage implements IWor
             int oldPort = act.getBoundPort();
             int newPort = getPreferenceStore().getInt(MCPPreferences.PREF_PORT);
             if (oldPort != -1 && oldPort != newPort) {
-                act.restartServer();
+                try {
+                    act.restartServer();
+                } catch (Exception ex) {
+                    act.getLog().log(new Status(IStatus.ERROR, Activator.PLUGIN_ID, ex.getMessage(), ex));
+                }
                 effectivePortLabel.setText("Effective port: " + act.getBoundPort());
             }
         }
