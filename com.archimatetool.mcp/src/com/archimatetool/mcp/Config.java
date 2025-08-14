@@ -1,7 +1,12 @@
 package com.archimatetool.mcp;
 
+import org.eclipse.core.runtime.preferences.IEclipsePreferences;
+import org.eclipse.core.runtime.preferences.InstanceScope;
+
+import com.archimatetool.mcp.preferences.MCPPreferences;
+
 /**
- * Centralized configuration with precedence: System Properties → Environment → Defaults.
+ * Centralized configuration with precedence: System Properties → Environment → Preferences → Defaults.
  */
 public final class Config {
 
@@ -25,6 +30,11 @@ public final class Config {
         try {
             String ev = System.getenv("ARCHI_MCP_PORT");
             if (ev != null && !ev.isEmpty()) return Integer.parseInt(ev);
+        } catch (Exception ignore) {}
+        try {
+            IEclipsePreferences prefs = InstanceScope.INSTANCE.getNode(MCPPreferences.NODE);
+            int prefPort = prefs.getInt(MCPPreferences.PREF_PORT, DEFAULT_PORT);
+            if (prefPort > 0) return prefPort;
         } catch (Exception ignore) {}
         return DEFAULT_PORT;
     }

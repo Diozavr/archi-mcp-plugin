@@ -6,6 +6,10 @@
 - Запуск: автоматически при старте Archi (Bundle-Activator + org.eclipse.ui.startup)
 - Требования: JavaSE 17, Archi (PDE), зависимости `org.eclipse.ui`, `com.archimatetool.editor`
 
+## Настройки
+- Порт HTTP сервера можно изменить в Archi → Preferences → MCP.
+- Приоритет источников порта: System Property `archi.mcp.port` → Env `ARCHI_MCP_PORT` → Preferences → Default (`8765`).
+
 ## Быстрый старт (PDE/Eclipse)
 1) Импортируйте `com.archimatetool.mcp` как PDE‑плагин.
 2) Запустите Eclipse Application (Archi). Плагин стартует автоматически.
