@@ -57,7 +57,8 @@ public class ConfigTest {
 
     private static void setEnv(String key, String value) throws Exception {
         try {
-            java.lang.reflect.Field field = java.lang.ProcessEnvironment.class.getDeclaredField("theEnvironment");
+            Class<?> pe = Class.forName("java.lang.ProcessEnvironment");
+            java.lang.reflect.Field field = pe.getDeclaredField("theEnvironment");
             field.setAccessible(true);
             @SuppressWarnings("unchecked")
             java.util.Map<String, String> env = (java.util.Map<String, String>) field.get(null);
@@ -66,7 +67,7 @@ public class ConfigTest {
             } else {
                 env.put(key, value);
             }
-            field = java.lang.ProcessEnvironment.class.getDeclaredField("theCaseInsensitiveEnvironment");
+            field = pe.getDeclaredField("theCaseInsensitiveEnvironment");
             field.setAccessible(true);
             @SuppressWarnings("unchecked")
             java.util.Map<String, String> cienv = (java.util.Map<String, String>) field.get(null);
@@ -75,7 +76,7 @@ public class ConfigTest {
             } else {
                 cienv.put(key, value);
             }
-        } catch (NoSuchFieldException e) {
+        } catch (NoSuchFieldException | ClassNotFoundException e) {
             java.lang.reflect.Field field = Class.forName("java.util.Collections$UnmodifiableMap").getDeclaredField("m");
             field.setAccessible(true);
             @SuppressWarnings("unchecked")
