@@ -1,8 +1,5 @@
 package com.archimatetool.mcp;
 
-import org.eclipse.core.runtime.preferences.IEclipsePreferences;
-import org.eclipse.core.runtime.preferences.InstanceScope;
-
 import com.archimatetool.mcp.preferences.MCPPreferences;
 
 /**
@@ -18,7 +15,7 @@ public final class Config {
     public static boolean isDebugEnabled() {
         String sp = System.getProperty("archi.mcp.debug");
         if (isTrue(sp)) return true;
-        String ev = System.getenv("ARCHI_MCP_DEBUG");
+        String ev = getenv.apply("ARCHI_MCP_DEBUG");
         return isTrue(ev);
     }
 
@@ -28,15 +25,20 @@ public final class Config {
             if (sp != null && !sp.isEmpty()) return Integer.parseInt(sp);
         } catch (Exception ignore) {}
         try {
-            String ev = System.getenv("ARCHI_MCP_PORT");
+            String ev = getenv.apply("ARCHI_MCP_PORT");
             if (ev != null && !ev.isEmpty()) return Integer.parseInt(ev);
         } catch (Exception ignore) {}
-        try {
-            IEclipsePreferences prefs = InstanceScope.INSTANCE.getNode(MCPPreferences.NODE);
-            int prefPort = prefs.getInt(MCPPreferences.PREF_PORT, DEFAULT_PORT);
-            if (prefPort > 0) return prefPort;
-        } catch (Exception ignore) {}
-        return DEFAULT_PORT;
+        return MCPPreferences.getPort();
+    }
+
+    private static java.util.function.Function<String, String> getenv = System::getenv;
+
+    public static void setGetenv(java.util.function.Function<String, String> f) {
+        getenv = f;
+    }
+
+    public static void resetGetenv() {
+        getenv = System::getenv;
     }
 
     private static boolean isTrue(String s) {
