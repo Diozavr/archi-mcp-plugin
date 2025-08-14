@@ -56,8 +56,8 @@ public class JsonRpcHttpHandlerTest {
     @Test
     public void testBatchWithNotification() throws Exception {
         String req = "[" +
-            "{\\\"jsonrpc\\\":\\\"2.0\\\",\\\"id\\\":1,\\\"method\\\":\\\"tools/list\\\",\\\"params\\\":{}}," +
-            "{\\\"jsonrpc\\\":\\\"2.0\\\",\\\"method\\\":\\\"notifications/initialized\\\"}]";
+            "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{}}," +
+            "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}]";
         FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
         new JsonRpcHttpHandler().handle(ex);
         assertEquals(200, ex.getResponseCode());
@@ -70,8 +70,8 @@ public class JsonRpcHttpHandlerTest {
     @Test
     public void testBatchAllNotifications() throws Exception {
         String req = "[" +
-            "{\\\"jsonrpc\\\":\\\"2.0\\\",\\\"method\\\":\\\"notifications/initialized\\\"}," +
-            "{\\\"jsonrpc\\\":\\\"2.0\\\",\\\"method\\\":\\\"tools/call\\\",\\\"params\\\":{\\\"name\\\":\\\"status\\\",\\\"args\\\":{}}}]";
+            "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}," +
+            "{\"jsonrpc\":\"2.0\",\"method\":\"tools/call\",\"params\":{\"name\":\"status\",\"args\":{}}}]";
         FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
         new JsonRpcHttpHandler().handle(ex);
         assertEquals(204, ex.getResponseCode());
@@ -109,7 +109,7 @@ public class JsonRpcHttpHandlerTest {
 
     @Test
     public void testInvalidParams() throws Exception {
-        String req = "{\"jsonrpc\":\"2.0\",\"id\":6,\"method\":\"tools/call\",\"params\":{\"name\":\"create_element\",\"args\":{\"name\":\"X\"}}}";
+        String req = "{\"jsonrpc\":\"2.0\",\"id\":6,\"method\":\"tools/call\",\"params\":{\"name\":\"echo\",\"args\":{}}}";
         FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
         new JsonRpcHttpHandler().handle(ex);
         assertEquals(200, ex.getResponseCode());
