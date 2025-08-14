@@ -2,6 +2,7 @@ package com.archimatetool.mcp.server.tools;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -43,13 +44,28 @@ public class Tool {
         if (description != null) {
             m.put("description", description);
         }
-        if (!params.isEmpty()) {
-            List<Map<String, Object>> p = new ArrayList<>();
-            for (ToolParam tp : params) {
-                p.add(tp.toMap());
+        Map<String, Object> schema = new HashMap<>();
+        schema.put("type", "object");
+        Map<String, Object> props = new LinkedHashMap<>();
+        List<String> required = new ArrayList<>();
+        for (ToolParam tp : params) {
+            Map<String, Object> p = new HashMap<>();
+            p.put("type", tp.getType());
+            if (tp.getDescription() != null) {
+                p.put("description", tp.getDescription());
             }
-            m.put("params", p);
+            if (tp.getDefaultValue() != null) {
+                p.put("default", tp.getDefaultValue());
+            }
+            props.put(tp.getName(), p);
+            if (tp.isRequired()) {
+                required.add(tp.getName());
+            }
         }
+        schema.put("properties", props);
+        schema.put("required", required);
+        schema.put("additionalProperties", Boolean.FALSE);
+        m.put("inputSchema", schema);
         return m;
     }
 }

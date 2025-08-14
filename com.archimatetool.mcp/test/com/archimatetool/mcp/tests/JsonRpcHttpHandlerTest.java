@@ -2,10 +2,17 @@ package com.archimatetool.mcp.tests;
 
 import static org.junit.Assert.*;
 
+import java.lang.reflect.Field;
+import java.util.Arrays;
+import java.util.Map;
+
 import org.junit.Test;
 
 import com.archimatetool.mcp.http.handlers.JsonRpcHttpHandler;
 import com.archimatetool.mcp.server.JacksonJson;
+import com.archimatetool.mcp.server.tools.Tool;
+import com.archimatetool.mcp.server.tools.ToolParam;
+import com.archimatetool.mcp.server.tools.ToolRegistry;
 import com.fasterxml.jackson.databind.JsonNode;
 
 /**
@@ -35,7 +42,7 @@ public class JsonRpcHttpHandlerTest {
 
     @Test
     public void testMethodNotFound() throws Exception {
-        String req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"bogus.method\"}";
+        String req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"bogus\"}";
         FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
         new JsonRpcHttpHandler().handle(ex);
         assertEquals(200, ex.getResponseCode());
@@ -46,7 +53,7 @@ public class JsonRpcHttpHandlerTest {
 
     @Test
     public void testNotificationNoContent() throws Exception {
-        String req = "{\"jsonrpc\":\"2.0\",\"method\":\"status\"}";
+        String req = "{\"jsonrpc\":\"2.0\",\"method\":\"tools/call\",\"params\":{\"name\":\"status\",\"args\":{}}}";
         FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
         new JsonRpcHttpHandler().handle(ex);
         assertEquals(204, ex.getResponseCode());
@@ -56,8 +63,8 @@ public class JsonRpcHttpHandlerTest {
     @Test
     public void testBatchWithNotification() throws Exception {
         String req = "[" +
-            "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"status\"}," +
-            "{\"jsonrpc\":\"2.0\",\"method\":\"status\"}]";
+            "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{}}," +
+            "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}]";
         FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
         new JsonRpcHttpHandler().handle(ex);
         assertEquals(200, ex.getResponseCode());
@@ -70,8 +77,8 @@ public class JsonRpcHttpHandlerTest {
     @Test
     public void testBatchAllNotifications() throws Exception {
         String req = "[" +
-            "{\"jsonrpc\":\"2.0\",\"method\":\"status\"}," +
-            "{\"jsonrpc\":\"2.0\",\"method\":\"types\"}]";
+            "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}," +
+            "{\"jsonrpc\":\"2.0\",\"method\":\"tools/call\",\"params\":{\"name\":\"status\",\"args\":{}}}]";
         FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
         new JsonRpcHttpHandler().handle(ex);
         assertEquals(204, ex.getResponseCode());
@@ -79,8 +86,26 @@ public class JsonRpcHttpHandlerTest {
     }
 
     @Test
+    public void testInitialize() throws Exception {
+        String req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"initialize\"}";
+        FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
+        new JsonRpcHttpHandler().handle(ex);
+        assertEquals(200, ex.getResponseCode());
+        JsonNode root = JacksonJson.mapper().readTree(ex.getResponseString());
+        assertEquals("2024-11-05", root.get("result").get("protocolVersion").asText());
+    }
+
+    @Test
+    public void testNotificationsInitialized() throws Exception {
+        String req = "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}";
+        FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
+        new JsonRpcHttpHandler().handle(ex);
+        assertEquals(204, ex.getResponseCode());
+    }
+
+    @Test
     public void testToolsList() throws Exception {
-        String req = "{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"tools/list\"}";
+        String req = "{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"tools/list\",\"params\":{}}";
         FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
         new JsonRpcHttpHandler().handle(ex);
         assertEquals(200, ex.getResponseCode());
@@ -91,7 +116,17 @@ public class JsonRpcHttpHandlerTest {
 
     @Test
     public void testInvalidParams() throws Exception {
-        String req = "{\"jsonrpc\":\"2.0\",\"id\":6,\"method\":\"elements/get\",\"params\":{}}";
+        Field f = ToolRegistry.class.getDeclaredField("TOOLS");
+        f.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<String, Tool> tools = (Map<String, Tool>) f.get(null);
+        tools.put("echo", new Tool(
+            "echo",
+            "Echo back a message",
+            Arrays.asList(new ToolParam("msg", "string", true, "Message to echo", null)),
+            params -> params
+        ));
+        String req = "{\"jsonrpc\":\"2.0\",\"id\":6,\"method\":\"tools/call\",\"params\":{\"name\":\"echo\",\"args\":{}}}"; 
         FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
         new JsonRpcHttpHandler().handle(ex);
         assertEquals(200, ex.getResponseCode());
@@ -100,14 +135,24 @@ public class JsonRpcHttpHandlerTest {
     }
 
     @Test
+    public void testToolsCallUnknown() throws Exception {
+        String req = "{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"tools/call\",\"params\":{\"name\":\"bogus\",\"args\":{}}}";
+        FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
+        new JsonRpcHttpHandler().handle(ex);
+        assertEquals(200, ex.getResponseCode());
+        JsonNode root = JacksonJson.mapper().readTree(ex.getResponseString());
+        assertEquals(-32601, root.get("error").get("code").asInt());
+    }
+
+    @Test
     public void testStatusHappyPath() throws Exception {
-        String req = "{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"status\"}";
+        String req = "{\"jsonrpc\":\"2.0\",\"id\":8,\"method\":\"tools/call\",\"params\":{\"name\":\"status\",\"args\":{}}}";
         FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
         new JsonRpcHttpHandler().handle(ex);
         assertEquals(200, ex.getResponseCode());
         JsonNode root = JacksonJson.mapper().readTree(ex.getResponseString());
         assertTrue(root.get("result").get("ok").asBoolean());
-        assertEquals(7, root.get("id").asInt());
+        assertEquals(8, root.get("id").asInt());
     }
 }
 
