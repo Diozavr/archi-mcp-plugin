@@ -81,7 +81,7 @@ public class JsonRpcHttpHandler implements HttpHandler {
         String method = node.path("method").asText();
         Tool tool = ToolRegistry.get(method);
         if (tool == null || tool.getInvoker() == null) {
-            return isNotification ? null : error(idNode, -32601, "method not found", null);
+            return isNotification ? null : error(idNode, -32601, "method '"+method+"' not found", null);
         }
         Map<String, Object> params = Collections.emptyMap();
         JsonNode paramsNode = node.get("params");
