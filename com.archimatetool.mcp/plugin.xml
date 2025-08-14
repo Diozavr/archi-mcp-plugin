@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?eclipse version="3.4"?>
 <plugin>
-   <!-- Minimal plugin; server starts in Bundle Activator. UI toggles/preferences can be added later. -->
+   <!-- MCP plugin: starts server on workbench startup and exposes toolbar toggle and preferences -->
 
    <!-- Ensure activation at workbench startup so the server starts automatically -->
    <extension
