@@ -47,9 +47,11 @@
 
    <extension
          point="org.eclipse.ui.menus">
-      <menuContribution locationURI="toolbar:org.eclipse.ui.main.toolbar">
+      <menuContribution
+            locationURI="toolbar:com.archimatetool.mcp.toolbar">
          <command
                commandId="com.archimatetool.mcp.commands.toggleServer"
+               label="MCP Server"
                style="toggle"
                icon="img/mcp_off.png"
                tooltip="Start/Stop MCP Server">
