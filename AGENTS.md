@@ -6,6 +6,9 @@
 - ОС: Windows, shell — WSL. Примеры команд — bash.
 - Для REST‑проверок используйте `curl` и `jq`.
 
+## Конфигурация
+- Порт HTTP сервера MCP задаётся через System Property `archi.mcp.port`, переменную окружения `ARCHI_MCP_PORT` или Preferences (Archi → Preferences → MCP). Приоритет: System Property → Env → Preferences → Default (`8765`).
+
 ## Инварианты API
 - Биндинг только `127.0.0.1:8765` (локально).
 - При отсутствии активной модели — HTTP 409 и `{"error":"no active model"}`.

@@ -21,6 +21,9 @@
 - Ввести константы ключей, напр.: `public static final String PREF_PORT = "port";` в `com.archimatetool.mcp.preferences` (новый `MCPPreferences.java`).
 - Использовать `IEclipsePreferences` (`InstanceScope.INSTANCE.getNode("com.archimatetool.mcp")`).
 - Создать `MCPPreferenceInitializer` (extends `AbstractPreferenceInitializer`) и прописать дефолт: `port=8765`.
+- Статус: [done]
+- Сделано: введены `MCPPreferences` и `MCPPreferenceInitializer` с дефолтом порта 8765.
+- Осталось: —
 
 Шаг 2. Страница Preferences (UI)
 - Изменить `MCPPreferencePage` на `FieldEditorPreferencePage` (тип: `GRID`) для встроенной валидации.
@@ -34,6 +37,9 @@
   - Подпись: «Port (localhost only)»; тултип: «Effective precedence: System Property → Env → Preferences → Default».
 - Показать текущий эффективный порт (read‑only label) с учётом приоритета (System/Env могут переопределять Preferences).
 - Optionally: кнопка «Restart server now» (необязательно, т.к. автоперезапуск будет в Apply/OK).
+- Статус: [done]
+- Сделано: `MCPPreferencePage` переведена на `FieldEditorPreferencePage`, добавлены поля host/port с предупреждением для нелокального хоста и меткой эффективного порта.
+- Осталось: реализовать необязательную кнопку ручного перезапуска при необходимости.
 
 Шаг 3. Применение и автоперезапуск
 - В `MCPPreferencePage.performOk()`/`performApply()`:
@@ -43,6 +49,9 @@
   - `public int getBoundPort()` — вернуть фактически занятый порт.
   - `public synchronized void restart()` — `stop()` → `start()` (учитывает новый `Config.resolvePort()`).
   - В `Activator`: `public void restartServer()` обёртка с нотификацией статуса (лог/label).
+- Статус: [done]
+- Сделано: реализованы перезапуск сервера при смене порта и методы `getBoundPort`/`restart`.
+- Осталось: —
 
 Шаг 4. Чтение настроек в конфиге
 - Обновить `Config.resolvePort()`:
@@ -50,17 +59,26 @@
   - Затем попробовать прочитать `InstanceScope` → `com.archimatetool.mcp` → `port` (int, безопасный парсинг, границы).
   - Fallback: `DEFAULT_PORT`.
 - Не создавать жёсткой зависимости от `Activator`: использовать `IEclipsePreferences` напрямую, чтобы вызов работал в момент старта бандла.
+- Статус: [done]
+- Сделано: `Config.resolvePort()` учитывает приоритет System→Env→Prefs→Default без зависимости от `Activator`.
+- Осталось: —
 
 Шаг 5. Валидация и UX‑детали
 - При невалидном значении `port` — блокировать `OK/Apply` (поведение `IntegerFieldEditor`).
 - Если перезапуск не удался (порт занят):
   - Показать диалог/ошибку на странице и откатить поле к прежнему значению или оставить поле, но вернуть прежний порт на уровне рантайма; логировать причину.
   - В лог‑окно (см. отдельный план для логов) записать stacktrace/ошибку биндинга.
+- Статус: [partial]
+- Сделано: базовая валидация полей и предупреждение для нелокального хоста.
+- Осталось: обработка ошибок занятости порта и логирование.
 
 Шаг 6. Тесты
 - Юнит: `Config.resolvePort()` — сценарии приоритета (System/Env/Prefs/Default).
 - Юнит: `MCPPreferenceInitializer` — дефолты применяются.
 - Интеграционный (эмуляция): сохранить порт в prefs → вызвать `restart()` → проверить, что сервер слушает новый порт (через `getBoundPort()` или попытку `curl`).
+- Статус: [partial]
+- Сделано: добавлены юнит‑тесты `ConfigTest` и `MCPPreferenceInitializerTest`.
+- Осталось: интеграционный сценарий перезапуска.
 
 Шаг 7. Smoke‑проверки (WSL)
 ```bash
@@ -73,14 +91,23 @@ curl -sS http://127.0.0.1:8081/status | jq .
 # 3) Вернуть 8765
 curl -sS http://127.0.0.1:8765/status | jq .
 ```
+- Статус: [todo]
+- Сделано: —
+- Осталось: выполнить smoke‑проверки по инструкции.
 
 Шаг 8. Документация
 - `README.md`: краткая инструкция по настройке порта и приоритету источников.
 - `AGENTS.md`: пункт «конфигурация» — отразить новый слой Preferences.
+- Статус: [done]
+- Сделано: обновлены `README.md` и `AGENTS.md` с описанием настроек и приоритета источников.
+- Осталось: —
 
 Шаг 9. Роллбэк
 - Удалить `MCPPreferenceInitializer`, правки `MCPPreferencePage` и чтение из Preferences в `Config.resolvePort()`.
 - Сервер вернётся к управлению портом через System/Env/Default.
+- Статус: [todo]
+- Сделано: —
+- Осталось: описать и реализовать процедуру отката при необходимости.
 
 Критерии готовности (DoD)
 - Страница Preferences отображает поле порта с валидацией и «effective port». 

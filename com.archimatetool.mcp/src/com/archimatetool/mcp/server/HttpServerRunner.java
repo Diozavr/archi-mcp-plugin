@@ -11,15 +11,16 @@ public class HttpServerRunner {
     private static final String HOST = Config.DEFAULT_HOST;
 
     private HttpServer server;
+    private int boundPort = -1;
 
-    public void start() throws IOException {
+    public synchronized void start() throws IOException {
         int port = Config.resolvePort();
         IOException last = null;
         for (int attempt = 0; attempt < 10; attempt++) {
             int p = port + attempt;
             try {
                 server = HttpServer.create(new InetSocketAddress(HOST, p), 0);
-                port = p;
+                boundPort = p;
                 last = null;
                 break;
             } catch (IOException ex) {
@@ -34,13 +35,24 @@ public class HttpServerRunner {
         Router.registerAll(server);
         server.setExecutor(java.util.concurrent.Executors.newCachedThreadPool());
         server.start();
-        System.out.println("[Archi MCP] Listening at http://" + HOST + ":" + port);
+        System.out.println("[Archi MCP] Listening at http://" + HOST + ":" + boundPort);
     }
 
-    public void stop() {
+    public synchronized void stop() {
         if (server != null) {
             server.stop(0);
+            server = null;
         }
+        boundPort = -1;
+    }
+
+    public synchronized void restart() throws IOException {
+        stop();
+        start();
+    }
+
+    public int getBoundPort() {
+        return boundPort;
     }
 }
 

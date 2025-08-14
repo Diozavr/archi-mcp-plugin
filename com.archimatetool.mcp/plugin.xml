@@ -20,4 +20,11 @@
       </page>
    </extension>
 
+   <extension
+         point="org.eclipse.core.runtime.preferences">
+      <initializer
+            class="com.archimatetool.mcp.preferences.MCPPreferenceInitializer">
+      </initializer>
+   </extension>
+
 </plugin>

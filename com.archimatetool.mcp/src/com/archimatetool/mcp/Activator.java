@@ -14,6 +14,23 @@ public class Activator implements BundleActivator {
         return instance;
     }
 
+    public int getBoundPort() {
+        if (serverRunner != null) {
+            return serverRunner.getBoundPort();
+        }
+        return -1;
+    }
+
+    public void restartServer() {
+        if (serverRunner != null) {
+            try {
+                serverRunner.restart();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
+    }
+
     @Override
     public void start(BundleContext context) throws Exception {
         instance = this;

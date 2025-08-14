@@ -1,7 +1,9 @@
 package com.archimatetool.mcp;
 
+import com.archimatetool.mcp.preferences.MCPPreferences;
+
 /**
- * Centralized configuration with precedence: System Properties → Environment → Defaults.
+ * Centralized configuration with precedence: System Properties → Environment → Preferences → Defaults.
  */
 public final class Config {
 
@@ -13,7 +15,7 @@ public final class Config {
     public static boolean isDebugEnabled() {
         String sp = System.getProperty("archi.mcp.debug");
         if (isTrue(sp)) return true;
-        String ev = System.getenv("ARCHI_MCP_DEBUG");
+        String ev = getenv.apply("ARCHI_MCP_DEBUG");
         return isTrue(ev);
     }
 
@@ -23,10 +25,20 @@ public final class Config {
             if (sp != null && !sp.isEmpty()) return Integer.parseInt(sp);
         } catch (Exception ignore) {}
         try {
-            String ev = System.getenv("ARCHI_MCP_PORT");
+            String ev = getenv.apply("ARCHI_MCP_PORT");
             if (ev != null && !ev.isEmpty()) return Integer.parseInt(ev);
         } catch (Exception ignore) {}
-        return DEFAULT_PORT;
+        return MCPPreferences.getPort();
+    }
+
+    private static java.util.function.Function<String, String> getenv = System::getenv;
+
+    public static void setGetenv(java.util.function.Function<String, String> f) {
+        getenv = f;
+    }
+
+    public static void resetGetenv() {
+        getenv = System::getenv;
     }
 
     private static boolean isTrue(String s) {
