@@ -2,10 +2,17 @@ package com.archimatetool.mcp.tests;
 
 import static org.junit.Assert.*;
 
+import java.lang.reflect.Field;
+import java.util.Arrays;
+import java.util.Map;
+
 import org.junit.Test;
 
 import com.archimatetool.mcp.http.handlers.JsonRpcHttpHandler;
 import com.archimatetool.mcp.server.JacksonJson;
+import com.archimatetool.mcp.server.tools.Tool;
+import com.archimatetool.mcp.server.tools.ToolParam;
+import com.archimatetool.mcp.server.tools.ToolRegistry;
 import com.fasterxml.jackson.databind.JsonNode;
 
 /**
@@ -109,7 +116,17 @@ public class JsonRpcHttpHandlerTest {
 
     @Test
     public void testInvalidParams() throws Exception {
-        String req = "{\"jsonrpc\":\"2.0\",\"id\":6,\"method\":\"tools/call\",\"params\":{\"name\":\"echo\",\"args\":{}}}";
+        Field f = ToolRegistry.class.getDeclaredField("TOOLS");
+        f.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<String, Tool> tools = (Map<String, Tool>) f.get(null);
+        tools.put("echo", new Tool(
+            "echo",
+            "Echo back a message",
+            Arrays.asList(new ToolParam("msg", "string", true, "Message to echo", null)),
+            params -> params
+        ));
+        String req = "{\"jsonrpc\":\"2.0\",\"id\":6,\"method\":\"tools/call\",\"params\":{\"name\":\"echo\",\"args\":{}}}"; 
         FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
         new JsonRpcHttpHandler().handle(ex);
         assertEquals(200, ex.getResponseCode());
