@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?eclipse version="3.4"?>
 <plugin>
-   <!-- Minimal plugin; server starts in Bundle Activator. UI toggles/preferences can be added later. -->
+   <!-- MCP plugin: starts server on workbench startup and exposes toolbar toggle and preferences -->
 
    <!-- Ensure activation at workbench startup so the server starts automatically -->
    <extension
@@ -25,6 +25,38 @@
       <initializer
             class="com.archimatetool.mcp.preferences.MCPPreferenceInitializer">
       </initializer>
+   </extension>
+
+   <extension
+         point="org.eclipse.ui.commands">
+      <category id="com.archimatetool.mcp.category" name="Archi MCP"/>
+      <command
+            id="com.archimatetool.mcp.commands.toggleServer"
+            name="MCP Server"
+            categoryId="com.archimatetool.mcp.category">
+      </command>
+   </extension>
+
+   <extension
+         point="org.eclipse.ui.handlers">
+      <handler
+            class="com.archimatetool.mcp.ui.ToggleServerHandler"
+            commandId="com.archimatetool.mcp.commands.toggleServer">
+      </handler>
+   </extension>
+
+   <extension
+         point="org.eclipse.ui.menus">
+      <menuContribution
+            locationURI="toolbar:com.archimatetool.mcp.toolbar">
+         <command
+               commandId="com.archimatetool.mcp.commands.toggleServer"
+               label="MCP Server"
+               style="toggle"
+               icon="img/mcp_off.png"
+               tooltip="Start/Stop MCP Server">
+         </command>
+      </menuContribution>
    </extension>
 
 </plugin>
