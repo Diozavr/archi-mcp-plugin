@@ -110,8 +110,9 @@ public class JsonRpcHttpHandlerTest {
         new JsonRpcHttpHandler().handle(ex);
         assertEquals(200, ex.getResponseCode());
         JsonNode root = JacksonJson.mapper().readTree(ex.getResponseString());
-        assertTrue(root.get("result").isArray());
-        assertTrue(root.get("result").size() > 0);
+        assertTrue(root.get("result").isObject());
+        assertTrue(root.get("result").get("tools").isArray());
+        assertTrue(root.get("result").get("tools").size() > 0);
     }
 
     @Test

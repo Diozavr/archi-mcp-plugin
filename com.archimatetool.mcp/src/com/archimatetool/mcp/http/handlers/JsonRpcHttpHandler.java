@@ -91,25 +91,29 @@ public class JsonRpcHttpHandler implements HttpHandler {
                     "serverInfo", Map.of("name", "Archi MCP", "version", "0.1.0"),
                     "capabilities", Map.of(
                         "tools", Map.of("listChanged", Boolean.FALSE),
-                        "prompts", Boolean.FALSE,
-                        "resources", Boolean.FALSE,
+                        // Cursor ожидает объекты для prompts/resources, а не boolean
+                        "prompts", Map.of(),
+                        "resources", Map.of(),
                         "logging", Map.of("levels", Arrays.asList("info", "warn", "error"))
                     )
                 );
                 return isNotification ? null : success(idNode, result);
             case "notifications/initialized":
                 return isNotification ? null : success(idNode, Collections.emptyMap());
-            case "tools/list":
-                return isNotification ? null : success(idNode, ToolRegistry.describeAll());
+            case "tools/list": {
+                Map<String, Object> payload = Map.of("tools", ToolRegistry.describeAll());
+                return isNotification ? null : success(idNode, payload);
+            }
             case "tools/call": {
                 Object nameObj = params.get("name");
                 if (!(nameObj instanceof String)) {
                     return isNotification ? null : error(idNode, -32602, "invalid params", Map.of("error", "missing name"));
                 }
                 String name = (String) nameObj;
-                @SuppressWarnings("unchecked") Map<String, Object> args = params.get("args") instanceof Map
-                        ? (Map<String, Object>) params.get("args")
-                        : Collections.emptyMap();
+                // Support both "arguments" (MCP default) and legacy "args"
+                @SuppressWarnings("unchecked") Map<String, Object> args =
+                        params.get("arguments") instanceof Map ? (Map<String, Object>) params.get("arguments") :
+                        (params.get("args") instanceof Map ? (Map<String, Object>) params.get("args") : Collections.emptyMap());
                 Tool tool = ToolRegistry.get(name);
                 if (tool == null || tool.getInvoker() == null) {
                     return isNotification ? null : error(idNode, -32601, "method '" + name + "' not found", null);
@@ -128,6 +132,14 @@ public class JsonRpcHttpHandler implements HttpHandler {
                 } catch (Exception ex) {
                     return isNotification ? null : error(idNode, -32603, "internal error", null);
                 }
+            }
+            case "prompts/list": {
+                Map<String, Object> payload = Map.of("prompts", Collections.emptyList());
+                return isNotification ? null : success(idNode, payload);
+            }
+            case "resources/list": {
+                Map<String, Object> payload = Map.of("resources", Collections.emptyList());
+                return isNotification ? null : success(idNode, payload);
             }
             default:
                 return isNotification ? null : error(idNode, -32601, "method '" + method + "' not found", null);
