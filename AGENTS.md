@@ -5,6 +5,8 @@
 ## Среда
 - ОС: Windows, shell — WSL. Примеры команд — bash.
 - Для REST‑проверок используйте `curl` и `jq`.
+ - При работе из Codex задавайте прокси через переменные окружения `http_proxy`/`https_proxy` (или `HTTP_PROXY`/`HTTPS_PROXY`), чтобы Maven и скрипты загрузки могли скачивать зависимости. В `com.archimatetool.mcp/.mvn/settings.xml` прокси уже выставлен на `http://proxy:8080`.
+ - Бинарные зависимости не добавляем в Git; скрипт `com.archimatetool.mcp/fetch-archi-deps.sh` скачивает их перед сборкой и тестами.
 
 ## Конфигурация
 - Порт HTTP сервера MCP задаётся через System Property `archi.mcp.port`, переменную окружения `ARCHI_MCP_PORT` или Preferences (Archi → Preferences → MCP). Приоритет: System Property → Env → Preferences → Default (`8765`).
@@ -43,6 +45,11 @@
 - При изменениях `resources/openapi.json` (включая тексты `summary/description` и описания параметров)
   необходимо синхронизировать статические описания параметров MCP‑инструментов в `archi-mcp-server/server.py`.
   Для REST‑контракта «истина» — `openapi.json`. `server.py` — только источник описаний для LLM (раздел `PARAM_DESCRIPTIONS`).
+
+## Сборка и тесты
+- В каталоге `com.archimatetool.mcp`:
+  - `mvn package` — сборка JAR.
+  - `mvn test` — запуск unit‑тестов.
 
 ## Быстрые проверки
 - `GET /status` → `{"ok":true,...}`

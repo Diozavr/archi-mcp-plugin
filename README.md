@@ -4,7 +4,7 @@
 
 - Хост/порт: http://127.0.0.1:8765
 - Запуск: автоматически при старте Archi (Bundle-Activator + org.eclipse.ui.startup)
-- Требования: JavaSE 17, Archi (PDE), зависимости `org.eclipse.ui`, `com.archimatetool.editor`
+- Требования: JavaSE 17, Archi (PDE), зависимости `org.eclipse.ui`, `com.archimatetool.editor`, `com.archimatetool.model`
 
 ## Настройки
 - Порт HTTP сервера можно изменить в Archi → Preferences → MCP.
@@ -54,6 +54,21 @@ curl -s http://127.0.0.1:8765/status
   "url": "http://127.0.0.1:8765/mcp",
   "caps": []
 }
+```
+
+## Сборка и тесты Maven
+В каталоге `com.archimatetool.mcp`:
+
+Перед запуском убедитесь, что в Codex заданы переменные `http_proxy`/`https_proxy` для доступа Maven к интернету.
+В каталоге `com.archimatetool.mcp` прокси также прописан в `.mvn/settings.xml` (http://proxy:8080);
+при сборке вне Codex скорректируйте или удалите этот файл.
+Бинарные зависимости (Archi/Eclipse/Jackson) не хранятся в репозитории — скрипт `com.archimatetool.mcp/fetch-archi-deps.sh` скачивает библиотеки Archi, остальные подтягивает Maven.
+
+```bash
+cd com.archimatetool.mcp
+./fetch-archi-deps.sh  # загрузка библиотек Archi (один раз)
+mvn package            # сборка JAR
+mvn test               # запуск unit-тестов
 ```
 
 ## Архитектура

@@ -5,9 +5,144 @@
   <version>0.0.1-SNAPSHOT</version>
   <name>ArchiMCP</name>
   <description>MCP tools for Archi</description>
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>17</maven.compiler.release>
+    <archi.version>5.6.0</archi.version>
+    <lib.dir>${project.basedir}/lib</lib.dir>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.13.2</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest</artifactId>
+      <version>2.2</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.osgi</groupId>
+      <artifactId>org.osgi.core</artifactId>
+      <version>6.0.0</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.osgi</groupId>
+      <artifactId>org.osgi.service.prefs</artifactId>
+      <version>1.1.2</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.platform</groupId>
+      <artifactId>org.eclipse.swt.gtk.linux.x86_64</artifactId>
+      <version>3.130.0</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.platform</groupId>
+      <artifactId>org.eclipse.core.runtime</artifactId>
+      <version>3.33.100</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.platform</groupId>
+      <artifactId>org.eclipse.equinox.preferences</artifactId>
+      <version>3.11.400</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.platform</groupId>
+      <artifactId>org.eclipse.ui</artifactId>
+      <version>3.207.200</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.emf</groupId>
+      <artifactId>org.eclipse.emf.common</artifactId>
+      <version>2.42.0</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.emf</groupId>
+      <artifactId>org.eclipse.emf.ecore</artifactId>
+      <version>2.39.0</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.archimatetool</groupId>
+      <artifactId>com.archimatetool.model</artifactId>
+      <version>${archi.version}</version>
+      <scope>system</scope>
+      <systemPath>${lib.dir}/com.archimatetool.model.jar</systemPath>
+    </dependency>
+    <dependency>
+      <groupId>com.archimatetool</groupId>
+      <artifactId>com.archimatetool.editor</artifactId>
+      <version>${archi.version}</version>
+      <scope>system</scope>
+      <systemPath>${lib.dir}/com.archimatetool.editor.jar</systemPath>
+    </dependency>
+    <dependency>
+      <groupId>com.archimatetool</groupId>
+      <artifactId>com.archimatetool.export.svg</artifactId>
+      <version>${archi.version}</version>
+      <scope>system</scope>
+      <systemPath>${lib.dir}/com.archimatetool.export.svg.jar</systemPath>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.draw2d</groupId>
+      <artifactId>org.eclipse.draw2d</artifactId>
+      <version>${archi.version}</version>
+      <scope>system</scope>
+      <systemPath>${lib.dir}/org.eclipse.draw2d.jar</systemPath>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.gef</groupId>
+      <artifactId>org.eclipse.gef</artifactId>
+      <version>${archi.version}</version>
+      <scope>system</scope>
+      <systemPath>${lib.dir}/org.eclipse.gef.jar</systemPath>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
+      <version>2.17.1</version>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-core</artifactId>
+      <version>2.17.1</version>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>2.17.1</version>
+    </dependency>
+  </dependencies>
   <build>
     <sourceDirectory>src</sourceDirectory>
     <testSourceDirectory>test</testSourceDirectory>
+    <resources>
+      <resource>
+        <directory>META-INF</directory>
+        <targetPath>META-INF</targetPath>
+      </resource>
+      <resource>
+        <directory>${project.basedir}</directory>
+        <includes>
+          <include>plugin.xml</include>
+        </includes>
+      </resource>
+      <resource>
+        <directory>resources</directory>
+        <targetPath>resources</targetPath>
+      </resource>
+    </resources>
     <testResources>
       <testResource>
         <directory>test</directory>
@@ -21,7 +156,34 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.13.0</version>
         <configuration>
-          <release>17</release>
+          <release>${maven.compiler.release}</release>
+        </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.1.2</version>
+        <configuration>
+          <includes>
+            <include>**/*Test.java</include>
+          </includes>
+          <excludes>
+            <exclude>**/*IT.java</exclude>
+          </excludes>
+          <trimStackTrace>true</trimStackTrace>
+          <failIfNoTests>false</failIfNoTests>
+        </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-resources-plugin</artifactId>
+        <version>3.3.1</version>
+      </plugin>
+      <plugin>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.3.0</version>
+        <configuration>
+          <archive>
+            <manifestFile>${project.basedir}/META-INF/MANIFEST.MF</manifestFile>
+          </archive>
         </configuration>
       </plugin>
     </plugins>
