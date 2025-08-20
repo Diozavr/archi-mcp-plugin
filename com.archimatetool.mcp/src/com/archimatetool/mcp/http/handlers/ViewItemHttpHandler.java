@@ -1,24 +1,35 @@
 package com.archimatetool.mcp.http.handlers;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import com.archimatetool.mcp.core.errors.CoreException;
-import com.archimatetool.mcp.core.types.AddElementToViewCmd;
-import com.archimatetool.mcp.core.types.AddRelationToViewCmd;
+import com.archimatetool.mcp.core.types.AddElementToViewItem;
+import com.archimatetool.mcp.core.types.AddElementsToViewCmd;
+import com.archimatetool.mcp.core.types.AddRelationToViewItem;
+import com.archimatetool.mcp.core.types.AddRelationsToViewCmd;
 import com.archimatetool.mcp.core.types.DeleteViewCmd;
-import com.archimatetool.mcp.core.types.DeleteViewObjectCmd;
+import com.archimatetool.mcp.core.types.DeleteViewObjectItem;
+import com.archimatetool.mcp.core.types.DeleteViewObjectsCmd;
 import com.archimatetool.mcp.core.types.GetViewContentQuery;
 import com.archimatetool.mcp.core.types.GetViewImageQuery;
 import com.archimatetool.mcp.core.types.GetViewQuery;
-import com.archimatetool.mcp.core.types.MoveViewObjectCmd;
-import com.archimatetool.mcp.core.types.UpdateViewObjectBoundsCmd;
+import com.archimatetool.mcp.core.types.MoveViewObjectItem;
+import com.archimatetool.mcp.core.types.MoveViewObjectsCmd;
+import com.archimatetool.mcp.core.types.UpdateViewObjectBoundsItem;
+import com.archimatetool.mcp.core.types.UpdateViewObjectsBoundsCmd;
 import com.archimatetool.mcp.core.views.ViewsCore;
 import com.archimatetool.mcp.http.QueryParams;
 import com.archimatetool.mcp.http.ResponseUtil;
 import com.archimatetool.mcp.json.JsonReader;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
+/** HTTP handler for view item operations with batch support. */
 public class ViewItemHttpHandler implements HttpHandler {
     private final ViewsCore core = new ViewsCore();
 
@@ -88,94 +99,127 @@ public class ViewItemHttpHandler implements HttpHandler {
 
         if ("add-element".equals(subpath) && "POST".equalsIgnoreCase(exchange.getRequestMethod())) {
             JsonReader jr = JsonReader.fromExchange(exchange);
-            String elementId = jr.optString("elementId");
-            String parentObjectId = jr.optString("parentObjectId");
-            Integer bx = jr.optIntWithin("bounds", "x");
-            Integer by = jr.optIntWithin("bounds", "y");
-            Integer bw = jr.optIntWithin("bounds", "w");
-            Integer bh = jr.optIntWithin("bounds", "h");
-            if (bx == null) bx = jr.optInt("x");
-            if (by == null) by = jr.optInt("y");
-            if (bw == null) bw = jr.optInt("w");
-            if (bh == null) bh = jr.optInt("h");
-            AddElementToViewCmd cmd = new AddElementToViewCmd(id, elementId, parentObjectId, bx, by, bw, bh);
+            List<AddElementToViewItem> items = new ArrayList<>();
+            if (jr.isArrayRoot()) {
+                for (int i = 0; i < jr.arraySize(); i++) {
+                    JsonReader it = jr.at(i);
+                    Integer bx = it.optIntWithin("bounds", "x");
+                    Integer by = it.optIntWithin("bounds", "y");
+                    Integer bw = it.optIntWithin("bounds", "w");
+                    Integer bh = it.optIntWithin("bounds", "h");
+                    if (bx == null) bx = it.optInt("x");
+                    if (by == null) by = it.optInt("y");
+                    if (bw == null) bw = it.optInt("w");
+                    if (bh == null) bh = it.optInt("h");
+                    items.add(new AddElementToViewItem(it.optString("elementId"), it.optString("parentObjectId"),
+                            bx, by, bw, bh, readMap(it.optObject("style"))));
+                }
+            }
+            AddElementsToViewCmd cmd = new AddElementsToViewCmd(id, items);
             try {
-                var res = core.addElement(cmd);
+                var res = core.addElements(cmd);
                 ResponseUtil.ok(exchange, res);
             } catch (CoreException ex) {
                 ResponseUtil.handleCoreException(exchange, ex);
             }
             return;
         }
+
         if ("add-relation".equals(subpath) && "POST".equalsIgnoreCase(exchange.getRequestMethod())) {
             JsonReader jr = JsonReader.fromExchange(exchange);
-            String relationId = jr.optString("relationId");
-            String sourceObjectId = jr.optString("sourceObjectId");
-            String targetObjectId = jr.optString("targetObjectId");
-            Boolean suppressWhenNested = jr.optBool("suppressWhenNested");
-            String policy = jr.optString("policy");
-            AddRelationToViewCmd cmd = new AddRelationToViewCmd(id, relationId, sourceObjectId, targetObjectId, suppressWhenNested, policy);
-            try {
-                var res = core.addRelation(cmd);
-                if (Boolean.TRUE.equals(res.get("suppressed"))) {
-                    ResponseUtil.ok(exchange, res);
-                } else {
-                    ResponseUtil.created(exchange, res);
+            List<AddRelationToViewItem> items = new ArrayList<>();
+            if (jr.isArrayRoot()) {
+                for (int i = 0; i < jr.arraySize(); i++) {
+                    JsonReader it = jr.at(i);
+                    items.add(new AddRelationToViewItem(it.optString("relationId"), it.optString("sourceObjectId"),
+                            it.optString("targetObjectId"), it.optString("policy"), it.optBool("suppressWhenNested")));
                 }
+            }
+            AddRelationsToViewCmd cmd = new AddRelationsToViewCmd(id, items);
+            try {
+                var res = core.addRelations(cmd);
+                ResponseUtil.ok(exchange, res);
             } catch (CoreException ex) {
                 ResponseUtil.handleCoreException(exchange, ex);
             }
             return;
         }
-        if (subpath.startsWith("objects/")) {
-            String rest = subpath.substring("objects/".length());
-            int s2 = rest.indexOf('/');
-            String objectId = s2 >= 0 ? rest.substring(0, s2) : rest;
-            String tail = s2 >= 0 ? rest.substring(s2 + 1) : null;
-            if (tail == null && "DELETE".equalsIgnoreCase(exchange.getRequestMethod())) {
-                DeleteViewObjectCmd cmd = new DeleteViewObjectCmd(id, objectId);
-                try {
-                    core.deleteObject(cmd);
-                    ResponseUtil.noContent(exchange);
-                } catch (CoreException ex) {
-                    ResponseUtil.handleCoreException(exchange, ex);
+
+        if ("objects/bounds".equals(subpath) && "PATCH".equalsIgnoreCase(exchange.getRequestMethod())) {
+            JsonReader jr = JsonReader.fromExchange(exchange);
+            List<UpdateViewObjectBoundsItem> items = new ArrayList<>();
+            if (jr.isArrayRoot()) {
+                for (int i = 0; i < jr.arraySize(); i++) {
+                    JsonReader it = jr.at(i);
+                    items.add(new UpdateViewObjectBoundsItem(it.optString("objectId"), it.optInt("x"), it.optInt("y"),
+                            it.optInt("w"), it.optInt("h")));
                 }
-                return;
             }
-            if ("bounds".equals(tail) && "PATCH".equalsIgnoreCase(exchange.getRequestMethod())) {
-                JsonReader jr = JsonReader.fromExchange(exchange);
-                UpdateViewObjectBoundsCmd cmd = new UpdateViewObjectBoundsCmd(id, objectId,
-                        jr.optInt("x"), jr.optInt("y"), jr.optInt("w"), jr.optInt("h"));
-                try {
-                    var dto = core.updateBounds(cmd);
-                    ResponseUtil.ok(exchange, dto);
-                } catch (CoreException ex) {
-                    ResponseUtil.handleCoreException(exchange, ex);
-                }
-                return;
+            UpdateViewObjectsBoundsCmd cmd = new UpdateViewObjectsBoundsCmd(id, items);
+            try {
+                var dto = core.updateBounds(cmd);
+                ResponseUtil.ok(exchange, dto);
+            } catch (CoreException ex) {
+                ResponseUtil.handleCoreException(exchange, ex);
             }
-            if ("move".equals(tail) && "PATCH".equalsIgnoreCase(exchange.getRequestMethod())) {
-                JsonReader jr = JsonReader.fromExchange(exchange);
-                String parentObjectId = jr.optString("parentObjectId");
-                Boolean keepExistingConnection = jr.optBool("keepExistingConnection");
-                Integer bx = jr.optIntWithin("bounds", "x");
-                Integer by = jr.optIntWithin("bounds", "y");
-                Integer bw = jr.optIntWithin("bounds", "w");
-                Integer bh = jr.optIntWithin("bounds", "h");
-                if (bx == null) bx = jr.optInt("x");
-                if (by == null) by = jr.optInt("y");
-                if (bw == null) bw = jr.optInt("w");
-                if (bh == null) bh = jr.optInt("h");
-                MoveViewObjectCmd cmd = new MoveViewObjectCmd(id, objectId, parentObjectId, bx, by, bw, bh, keepExistingConnection);
-                try {
-                    var dto = core.moveObject(cmd);
-                    ResponseUtil.ok(exchange, dto);
-                } catch (CoreException ex) {
-                    ResponseUtil.handleCoreException(exchange, ex);
-                }
-                return;
-            }
+            return;
         }
+
+        if ("objects/move".equals(subpath) && "PATCH".equalsIgnoreCase(exchange.getRequestMethod())) {
+            JsonReader jr = JsonReader.fromExchange(exchange);
+            List<MoveViewObjectItem> items = new ArrayList<>();
+            if (jr.isArrayRoot()) {
+                for (int i = 0; i < jr.arraySize(); i++) {
+                    JsonReader it = jr.at(i);
+                    Integer bx = it.optIntWithin("bounds", "x");
+                    Integer by = it.optIntWithin("bounds", "y");
+                    Integer bw = it.optIntWithin("bounds", "w");
+                    Integer bh = it.optIntWithin("bounds", "h");
+                    if (bx == null) bx = it.optInt("x");
+                    if (by == null) by = it.optInt("y");
+                    if (bw == null) bw = it.optInt("w");
+                    if (bh == null) bh = it.optInt("h");
+                    items.add(new MoveViewObjectItem(it.optString("objectId"), it.optString("parentObjectId"),
+                            bx, by, bw, bh, it.optBool("keepExistingConnection")));
+                }
+            }
+            MoveViewObjectsCmd cmd = new MoveViewObjectsCmd(id, items);
+            try {
+                var dto = core.moveObjects(cmd);
+                ResponseUtil.ok(exchange, dto);
+            } catch (CoreException ex) {
+                ResponseUtil.handleCoreException(exchange, ex);
+            }
+            return;
+        }
+
+        if ("objects".equals(subpath) && "DELETE".equalsIgnoreCase(exchange.getRequestMethod())) {
+            JsonReader jr = JsonReader.fromExchange(exchange);
+            List<DeleteViewObjectItem> items = new ArrayList<>();
+            if (jr.isArrayRoot()) {
+                for (int i = 0; i < jr.arraySize(); i++) {
+                    JsonReader it = jr.at(i);
+                    items.add(new DeleteViewObjectItem(it.optString("objectId")));
+                }
+            }
+            DeleteViewObjectsCmd cmd = new DeleteViewObjectsCmd(id, items);
+            try {
+                var dto = core.deleteObjects(cmd);
+                ResponseUtil.ok(exchange, dto);
+            } catch (CoreException ex) {
+                ResponseUtil.handleCoreException(exchange, ex);
+            }
+            return;
+        }
+
         ResponseUtil.notFound(exchange, "not found");
     }
+
+    private Map<String, String> readMap(JsonNode node) {
+        if (node == null) return null;
+        Map<String, String> m = new HashMap<>();
+        node.fields().forEachRemaining(e -> m.put(e.getKey(), e.getValue().asText()));
+        return m;
+    }
 }
+

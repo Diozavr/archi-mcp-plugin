@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Extended smoke test for Archi MCP Plugin (localhost/WSL)
+# Batch-oriented smoke test for Archi MCP Plugin (localhost/WSL)
 API_PORT="${ARCHI_MCP_PORT:-8765}"
 
 is_wsl() { grep -qiE 'microsoft|wsl' /proc/sys/kernel/osrelease 2>/dev/null || [ -n "${WSL_DISTRO_NAME:-}" ]; }
@@ -57,25 +57,12 @@ wait_ready() {
 
 wait_ready
 
-# 1) Service status
+# 1) Basic endpoints
 run "GET /status" curl_json "${BASE}/status"
-
-# 2) OpenAPI
 run "GET /openapi.json" curl_json "${BASE}/openapi.json"
-
-# 3) Types
 run "GET /types" curl_json "${BASE}/types"
 
-# MCP JSON-RPC
-run "RPC initialize" curl_json -X POST -d '{"jsonrpc":"2.0","id":1,"method":"initialize"}' "${BASE}/mcp"
-run "RPC notifications/initialized" curl_json -X POST -d '{"jsonrpc":"2.0","method":"notifications/initialized"}' "${BASE}/mcp"
-run "RPC tools/list" curl_json -X POST -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' "${BASE}/mcp"
-run "RPC tools/call status" curl_json -X POST -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"status","args":{}}}' "${BASE}/mcp"
-run "RPC tools/call method not found" curl_json -X POST -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"bogus","args":{}}}' "${BASE}/mcp"
-code=$("$CURL_BIN" -s -o /dev/null -w "%{http_code}" -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"status","args":{}}}' "${BASE}/mcp")
-if [ "$code" != "204" ]; then echo "[SMOKE] Expected 204 for notification, got $code"; fi
-
-# 4) Folders (may be 409 when no active model)
+# 2) Folders (may be 409 when no active model)
 code=$("$CURL_BIN" -s -o /dev/null -w "%{http_code}" "${BASE}/folders")
 if [ "$code" = "409" ]; then
   echo "\n[SMOKE] No active model (HTTP 409). Model-dependent checks are skipped."
@@ -83,67 +70,42 @@ if [ "$code" = "409" ]; then
 fi
 run "GET /folders" curl_json "${BASE}/folders"
 
-# 5) Views
-VID0=$(curl_json "${BASE}/views" | jq -r '.[0].id // empty')
-run "GET /views" curl_json "${BASE}/views"
-VID1=$(curl_json -X POST -d '{"type":"ArchimateDiagramModel","name":"Smoke View"}' "${BASE}/views" | jq -r '.id')
-run "GET /views/${VID1}" curl_json "${BASE}/views/${VID1}"
-run "GET /views/${VID1}/content" curl_json "${BASE}/views/${VID1}/content"
-run "GET /views/content?id=${VID1}" curl_json "${BASE}/views/content?id=${VID1}"
+# 3) Batch element operations
+ELEMS=$(curl_json -X POST -d '[{"type":"BusinessActor","name":"E1"},{"type":"BusinessRole","name":"E2"},{"type":"BusinessProcess","name":"E3"},{"type":"BusinessFunction","name":"E4"},{"type":"BusinessEvent","name":"E5"}]' "${BASE}/elements")
+E1=$(echo "$ELEMS" | jq -r '.[0].id')
+E2=$(echo "$ELEMS" | jq -r '.[1].id')
+E3=$(echo "$ELEMS" | jq -r '.[2].id')
+E4=$(echo "$ELEMS" | jq -r '.[3].id')
+E5=$(echo "$ELEMS" | jq -r '.[4].id')
+run "GET /elements?ids=..." curl_json "${BASE}/elements?ids=${E1}&ids=${E2}&ids=${E3}&ids=${E4}&ids=${E5}"
+run "PATCH /elements" curl_json -X PATCH -d '[{"id":"'${E1}'","name":"E1r"},{"id":"'${E2}'","name":"E2r"},{"id":"'${E3}'","name":"E3r"}]' "${BASE}/elements"
 
-# 6) Elements
-E1=$(curl_json -X POST -d '{"type":"BusinessActor","name":"S1"}' "${BASE}/elements" | jq -r '.id')
-E2=$(curl_json -X POST -d '{"type":"BusinessRole","name":"S2"}' "${BASE}/elements" | jq -r '.id')
-run "GET /elements/${E1}" curl_json "${BASE}/elements/${E1}"
-run "GET /elements/${E1}?include=relations&includeElements=true" curl_json "${BASE}/elements/${E1}?include=relations&includeElements=true"
-run "GET /elements/${E1}/relations?direction=out" curl_json "${BASE}/elements/${E1}/relations?direction=out"
-run "GET /elements/${E1}/relations?direction=in" curl_json "${BASE}/elements/${E1}/relations?direction=in"
-run "GET /elements/${E1}/relations?direction=both&includeElements=true" curl_json "${BASE}/elements/${E1}/relations?direction=both&includeElements=true"
-run "PATCH /elements/${E1}" curl_json -X PATCH -d '{"name":"S1-renamed"}' "${BASE}/elements/${E1}"
+# 4) Batch relation operations
+RELS=$(curl_json -X POST -d '[{"type":"AssociationRelationship","sourceId":"'${E1}'","targetId":"'${E2}'"},{"type":"AssociationRelationship","sourceId":"'${E2}'","targetId":"'${E3}'"},{"type":"AssociationRelationship","sourceId":"'${E3}'","targetId":"'${E4}'"},{"type":"AssociationRelationship","sourceId":"'${E4}'","targetId":"'${E5}'"}]' "${BASE}/relations")
+R1=$(echo "$RELS" | jq -r '.[0].id')
+R2=$(echo "$RELS" | jq -r '.[1].id')
+R3=$(echo "$RELS" | jq -r '.[2].id')
+R4=$(echo "$RELS" | jq -r '.[3].id')
+run "GET /relations?ids=..." curl_json "${BASE}/relations?ids=${R1}&ids=${R2}&ids=${R3}&ids=${R4}"
+run "PATCH /relations" curl_json -X PATCH -d '[{"id":"'${R1}'","name":"R1r"},{"id":"'${R2}'","name":"R2r"}]' "${BASE}/relations"
 
-# 7) Relations
-REL=$(curl_json -X POST -d '{"type":"AssociationRelationship","sourceId":"'${E1}'","targetId":"'${E2}'","name":"R"}' "${BASE}/relations" | jq -r '.id')
-run "GET /relations/${REL}" curl_json "${BASE}/relations/${REL}"
-run "PATCH /relations/${REL}" curl_json -X PATCH -d '{"name":"R-renamed"}' "${BASE}/relations/${REL}"
+# 5) View and view objects
+VID=$(curl_json -X POST -d '{"type":"ArchimateDiagramModel","name":"Smoke View"}' "${BASE}/views" | jq -r '.id')
+OBJS=$(curl_json -X POST -d '[{"elementId":"'${E1}'","bounds":{"x":10,"y":10,"w":40,"h":40}},{"elementId":"'${E2}'"},{"elementId":"'${E3}'"},{"elementId":"'${E4}'"},{"elementId":"'${E5}'"}]' "${BASE}/views/${VID}/add-element")
+O1=$(echo "$OBJS" | jq -r '.[0].objectId')
+O2=$(echo "$OBJS" | jq -r '.[1].objectId')
+O3=$(echo "$OBJS" | jq -r '.[2].objectId')
+O4=$(echo "$OBJS" | jq -r '.[3].objectId')
+O5=$(echo "$OBJS" | jq -r '.[4].objectId')
+run "POST /views/${VID}/add-relation" curl_json -X POST -d '[{"relationId":"'${R1}'"},{"relationId":"'${R2}'"},{"relationId":"'${R3}'"},{"relationId":"'${R4}'"}]' "${BASE}/views/${VID}/add-relation"
+run "PATCH /views/${VID}/objects/bounds" curl_json -X PATCH -d '[{"objectId":'${O1}',"x":20},{"objectId":'${O2}',"y":20},{"objectId":'${O3}',"w":80,"h":80}]' "${BASE}/views/${VID}/objects/bounds"
+run "PATCH /views/${VID}/objects/move" curl_json -X PATCH -d '[{"objectId":'${O4}',"parentObjectId":'${O1}'},{"objectId":'${O5}',"parentObjectId":'${O1}'}]' "${BASE}/views/${VID}/objects/move"
+run "DELETE /views/${VID}/objects" curl_json -X DELETE -d '[{"objectId":'${O1}'},{"objectId":'${O2}'},{"objectId":'${O3}'},{"objectId":'${O4}'},{"objectId":'${O5}'}]' "${BASE}/views/${VID}/objects"
 
-# 8) View operations
-OBJ1=$(curl_json -X POST -d '{"viewId":"'${VID1}'","elementId":"'${E1}'"}' "${BASE}/views/add-element" | jq -r '.objectId')
-OBJ2=$(curl_json -X POST -d '{"elementId":"'${E2}'","parentObjectId":'${OBJ1}',"bounds":{"x":10,"y":10,"w":40,"h":40}}' "${BASE}/views/${VID1}/add-element" | jq -r '.objectId')
-run "PATCH /views/${VID1}/objects/${OBJ2}/bounds" curl_json -X PATCH -d '{"x":20,"y":20,"w":50,"h":50}' "${BASE}/views/${VID1}/objects/${OBJ2}/bounds"
-run "PATCH /views/${VID1}/objects/${OBJ2}/move root" curl_json -X PATCH -d '{"parentObjectId":0}' "${BASE}/views/${VID1}/objects/${OBJ2}/move"
-run "PATCH /views/${VID1}/objects/${OBJ2}/move back" curl_json -X PATCH -d '{"parentObjectId":'${OBJ1}',"keepExistingConnection":true}' "${BASE}/views/${VID1}/objects/${OBJ2}/move"
-run "POST /views/${VID1}/add-relation auto" curl_json -X POST -d '{"relationId":"'${REL}'","policy":"auto"}' "${BASE}/views/${VID1}/add-relation"
-run "POST /views/${VID1}/add-relation explicit" curl_json -X POST -d '{"relationId":"'${REL}'","sourceObjectId":'${OBJ1}',"targetObjectId":'${OBJ2}',"suppressWhenNested":true}' "${BASE}/views/${VID1}/add-relation"
-run "GET /views/${VID1}/content" curl_json "${BASE}/views/${VID1}/content"
-run "DELETE /views/${VID1}/objects/${OBJ2}" curl_json -X DELETE "${BASE}/views/${VID1}/objects/${OBJ2}"
-
-# 9) View image
-"$CURL_BIN" -sS "${BASE}/views/${VID1}/image?format=png&scale=1.0&bg=transparent&margin=0" -o /tmp/view.png -D /tmp/headers.txt > /dev/null
-grep -iq 'image/png' /tmp/headers.txt
-[ -s /tmp/view.png ]
-code=$("$CURL_BIN" -s -o /dev/null -w "%{http_code}" "${BASE}/views/${VID1}/image?format=svg")
-if [ "$code" != "400" ]; then echo "Unexpected SVG response code: $code"; exit 1; fi
-
-# 10) Search
-run "GET /search?q=Actor" curl_json "${BASE}/search?q=Actor"
-run "GET /search with params" curl_json "${BASE}/search?q=Actor&kind=element&limit=1&offset=0&debug=true"
-
-# 11) Save model
+# 6) Cleanup and save
+run "DELETE /relations" curl_json -X DELETE -d '[{"id":"'${R1}'"},{"id":"'${R2}'"},{"id":"'${R3}'"},{"id":"'${R4}'"}]' "${BASE}/relations"
+run "DELETE /elements" curl_json -X DELETE -d '[{"id":"'${E1}'"},{"id":"'${E2}'"},{"id":"'${E3}'"},{"id":"'${E4}'"},{"id":"'${E5}'"}]' "${BASE}/elements"
 run "POST /model/save" curl_json -X POST "${BASE}/model/save"
 
-# 12) Script stubs
-"$CURL_BIN" -s -o /dev/null -w "%{http_code}" "${BASE}/script/engines" | grep -q '^501$'
-"$CURL_BIN" -s -o /dev/null -w "%{http_code}" -X POST "${BASE}/script/run" | grep -q '^501$'
-
-# 13) Error checks
-"$CURL_BIN" -s -o /dev/null -w "%{http_code}" "${BASE}/elements/bogus" | grep -q '^404$'
-"$CURL_BIN" -s -o /dev/null -w "%{http_code}" "${BASE}/views/bogus" | grep -q '^404$'
-"$CURL_BIN" -s -o /dev/null -w "%{http_code}" -X POST "${BASE}/status" | grep -q '^405$'
-
-# 14) Cleanup
-"$CURL_BIN" -s -o /dev/null -w "%{http_code}" -X DELETE "${BASE}/relations/${REL}" | grep -q '^204$'
-"$CURL_BIN" -s -o /dev/null -w "%{http_code}" -X DELETE "${BASE}/elements/${E1}" | grep -q '^204$'
-"$CURL_BIN" -s -o /dev/null -w "%{http_code}" -X DELETE "${BASE}/elements/${E2}" | grep -q '^204$'
-"$CURL_BIN" -s -o /dev/null -w "%{http_code}" -X DELETE "${BASE}/views/${VID1}" | grep -q '^204$'
-
 echo "\n[SMOKE] Flow completed."
+

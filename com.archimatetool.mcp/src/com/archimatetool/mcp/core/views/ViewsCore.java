@@ -11,15 +11,25 @@ import com.archimatetool.mcp.core.errors.CoreException;
 import com.archimatetool.mcp.core.errors.NotFoundException;
 import com.archimatetool.mcp.core.errors.UnprocessableException;
 import com.archimatetool.mcp.core.types.AddElementToViewCmd;
+import com.archimatetool.mcp.core.types.AddElementToViewItem;
+import com.archimatetool.mcp.core.types.AddElementsToViewCmd;
 import com.archimatetool.mcp.core.types.AddRelationToViewCmd;
+import com.archimatetool.mcp.core.types.AddRelationToViewItem;
+import com.archimatetool.mcp.core.types.AddRelationsToViewCmd;
 import com.archimatetool.mcp.core.types.CreateViewCmd;
 import com.archimatetool.mcp.core.types.DeleteViewCmd;
 import com.archimatetool.mcp.core.types.GetViewContentQuery;
 import com.archimatetool.mcp.core.types.GetViewImageQuery;
 import com.archimatetool.mcp.core.types.GetViewQuery;
 import com.archimatetool.mcp.core.types.DeleteViewObjectCmd;
+import com.archimatetool.mcp.core.types.DeleteViewObjectItem;
+import com.archimatetool.mcp.core.types.DeleteViewObjectsCmd;
 import com.archimatetool.mcp.core.types.MoveViewObjectCmd;
+import com.archimatetool.mcp.core.types.MoveViewObjectItem;
+import com.archimatetool.mcp.core.types.MoveViewObjectsCmd;
 import com.archimatetool.mcp.core.types.UpdateViewObjectBoundsCmd;
+import com.archimatetool.mcp.core.types.UpdateViewObjectBoundsItem;
+import com.archimatetool.mcp.core.types.UpdateViewObjectsBoundsCmd;
 import com.archimatetool.mcp.core.validation.Validators;
 import com.archimatetool.mcp.server.ModelApi;
 import com.archimatetool.mcp.service.ServiceRegistry;
@@ -82,35 +92,52 @@ public class ViewsCore {
         return ModelApi.viewContentToDto((IDiagramModel) obj);
     }
 
-    /** Add element to a view or container within the view. */
+    /** Add element to a view or container within the view (legacy single-item). */
     public Map<String, Object> addElement(AddElementToViewCmd cmd) throws CoreException {
+        var item = new AddElementToViewItem(cmd.elementId, cmd.parentObjectId, cmd.x, cmd.y, cmd.w, cmd.h, null);
+        return addElement(cmd.viewId, item);
+    }
+
+    /** Add multiple elements to a view. */
+    public List<Map<String, Object>> addElements(AddElementsToViewCmd cmd) throws CoreException {
         Validators.requireNonEmpty(cmd.viewId, "viewId");
-        Validators.requireNonEmpty(cmd.elementId, "elementId");
+        Validators.requireNonNull(cmd.items, "items");
+        Validators.require(!cmd.items.isEmpty(), "items required");
+        List<Map<String, Object>> res = new java.util.ArrayList<>();
+        for (AddElementToViewItem item : cmd.items) {
+            res.add(addElement(cmd.viewId, item));
+        }
+        return res;
+    }
+
+    private Map<String, Object> addElement(String viewId, AddElementToViewItem item) throws CoreException {
+        Validators.requireNonEmpty(viewId, "viewId");
+        Validators.requireNonEmpty(item.elementId, "elementId");
         var model = ServiceRegistry.activeModel().getActiveModel();
         if (model == null) throw new ConflictException("no active model");
-        Object vo = ServiceRegistry.activeModel().findById(model, cmd.viewId);
-        Object eo = ServiceRegistry.activeModel().findById(model, cmd.elementId);
+        Object vo = ServiceRegistry.activeModel().findById(model, viewId);
+        Object eo = ServiceRegistry.activeModel().findById(model, item.elementId);
         if (!(vo instanceof IDiagramModel) || !(eo instanceof IArchimateElement)) {
             throw new NotFoundException("view or element not found");
         }
         IDiagramModel view = (IDiagramModel) vo;
         IArchimateElement el = (IArchimateElement) eo;
         IDiagramModelObject parentObj = null;
-        if (cmd.parentObjectId != null && !cmd.parentObjectId.isEmpty()) {
-            parentObj = ModelApi.findDiagramObjectById(view, cmd.parentObjectId);
+        if (item.parentObjectId != null && !item.parentObjectId.isEmpty()) {
+            parentObj = ModelApi.findDiagramObjectById(view, item.parentObjectId);
             if (parentObj == null) throw new NotFoundException("parentObjectId not found in view");
             if (!(parentObj instanceof IDiagramModelContainer)) {
                 throw new BadRequestException("parent object is not a container");
             }
         }
-        if (cmd.x != null) Validators.requireNonNegative(cmd.x, "x");
-        if (cmd.y != null) Validators.requireNonNegative(cmd.y, "y");
-        if (cmd.w != null) Validators.requireNonNegative(cmd.w, "w");
-        if (cmd.h != null) Validators.requireNonNegative(cmd.h, "h");
-        int x = cmd.x != null ? cmd.x.intValue() : 100;
-        int y = cmd.y != null ? cmd.y.intValue() : 100;
-        int w = cmd.w != null ? cmd.w.intValue() : 120;
-        int h = cmd.h != null ? cmd.h.intValue() : 80;
+        if (item.x != null) Validators.requireNonNegative(item.x, "x");
+        if (item.y != null) Validators.requireNonNegative(item.y, "y");
+        if (item.w != null) Validators.requireNonNegative(item.w, "w");
+        if (item.h != null) Validators.requireNonNegative(item.h, "h");
+        int x = item.x != null ? item.x.intValue() : 100;
+        int y = item.y != null ? item.y.intValue() : 100;
+        int w = item.w != null ? item.w.intValue() : 120;
+        int h = item.h != null ? item.h.intValue() : 80;
         IDiagramModelArchimateObject dmo;
         if (parentObj instanceof IDiagramModelContainer) {
             dmo = ServiceRegistry.views().addElementToContainer((IDiagramModelContainer) parentObj, el, x, y, w, h);
@@ -120,14 +147,32 @@ public class ViewsCore {
         return Map.of("objectId", dmo.getId());
     }
 
-    /** Add relation to a view. */
+    /** Add relation to a view (legacy single-item). */
     public Map<String, Object> addRelation(AddRelationToViewCmd cmd) throws CoreException {
+        var item = new AddRelationToViewItem(cmd.relationId, cmd.sourceObjectId, cmd.targetObjectId, cmd.policy,
+                cmd.suppressWhenNested);
+        return addRelation(cmd.viewId, item);
+    }
+
+    /** Add multiple relations to a view. */
+    public List<Map<String, Object>> addRelations(AddRelationsToViewCmd cmd) throws CoreException {
         Validators.requireNonEmpty(cmd.viewId, "viewId");
-        Validators.requireNonEmpty(cmd.relationId, "relationId");
+        Validators.requireNonNull(cmd.items, "items");
+        Validators.require(!cmd.items.isEmpty(), "items required");
+        List<Map<String, Object>> res = new java.util.ArrayList<>();
+        for (AddRelationToViewItem item : cmd.items) {
+            res.add(addRelation(cmd.viewId, item));
+        }
+        return res;
+    }
+
+    private Map<String, Object> addRelation(String viewId, AddRelationToViewItem item) throws CoreException {
+        Validators.requireNonEmpty(viewId, "viewId");
+        Validators.requireNonEmpty(item.relationId, "relationId");
         var model = ServiceRegistry.activeModel().getActiveModel();
         if (model == null) throw new ConflictException("no active model");
-        Object vo = ServiceRegistry.activeModel().findById(model, cmd.viewId);
-        Object ro = ServiceRegistry.activeModel().findById(model, cmd.relationId);
+        Object vo = ServiceRegistry.activeModel().findById(model, viewId);
+        Object ro = ServiceRegistry.activeModel().findById(model, item.relationId);
         if (!(vo instanceof IDiagramModel) || !(ro instanceof com.archimatetool.model.IArchimateRelationship)) {
             throw new NotFoundException("view or relation not found");
         }
@@ -135,15 +180,15 @@ public class ViewsCore {
         com.archimatetool.model.IArchimateRelationship rel = (com.archimatetool.model.IArchimateRelationship) ro;
         com.archimatetool.model.IDiagramModelObject so = null;
         com.archimatetool.model.IDiagramModelObject to = null;
-        if (cmd.sourceObjectId != null && !cmd.sourceObjectId.isEmpty()) {
-            so = ModelApi.findDiagramObjectById(view, cmd.sourceObjectId);
+        if (item.sourceObjectId != null && !item.sourceObjectId.isEmpty()) {
+            so = ModelApi.findDiagramObjectById(view, item.sourceObjectId);
             if (so == null) throw new NotFoundException("sourceObjectId not found in view");
         }
-        if (cmd.targetObjectId != null && !cmd.targetObjectId.isEmpty()) {
-            to = ModelApi.findDiagramObjectById(view, cmd.targetObjectId);
+        if (item.targetObjectId != null && !item.targetObjectId.isEmpty()) {
+            to = ModelApi.findDiagramObjectById(view, item.targetObjectId);
             if (to == null) throw new NotFoundException("targetObjectId not found in view");
         }
-        String policy = cmd.policy != null ? cmd.policy : "auto";
+        String policy = item.policy != null ? item.policy : "auto";
         if ((so == null || to == null)) {
             if (!"auto".equals(policy)) {
                 throw new BadRequestException("sourceObjectId/targetObjectId required or use policy=auto");
@@ -153,13 +198,19 @@ public class ViewsCore {
             var srcObjs = ModelApi.findDiagramObjectsByElementId(view, srcElId);
             var tgtObjs = ModelApi.findDiagramObjectsByElementId(view, tgtElId);
             if (so == null) {
-                if (srcObjs.size() == 1) so = srcObjs.get(0); else throw new ConflictException("ambiguous or missing source object on view");
+                if (srcObjs.size() == 1)
+                    so = srcObjs.get(0);
+                else
+                    throw new ConflictException("ambiguous or missing source object on view");
             }
             if (to == null) {
-                if (tgtObjs.size() == 1) to = tgtObjs.get(0); else throw new ConflictException("ambiguous or missing target object on view");
+                if (tgtObjs.size() == 1)
+                    to = tgtObjs.get(0);
+                else
+                    throw new ConflictException("ambiguous or missing target object on view");
             }
         }
-        if (Boolean.TRUE.equals(cmd.suppressWhenNested)) {
+        if (Boolean.TRUE.equals(item.suppressWhenNested)) {
             if (ModelApi.isAncestorOf(so, to) || ModelApi.isAncestorOf(to, so)) {
                 return Map.of("suppressed", true);
             }
@@ -168,60 +219,113 @@ public class ViewsCore {
         return ModelApi.connectionToDto(conn);
     }
 
-    /** Update bounds of a diagram object. */
+    /** Update bounds of a diagram object (legacy single-item). */
     public Map<String, Object> updateBounds(UpdateViewObjectBoundsCmd cmd) throws CoreException {
+        var item = new UpdateViewObjectBoundsItem(cmd.objectId, cmd.x, cmd.y, cmd.w, cmd.h);
+        return updateBounds(cmd.viewId, item);
+    }
+
+    /** Update bounds of multiple diagram objects. */
+    public List<Map<String, Object>> updateBounds(UpdateViewObjectsBoundsCmd cmd) throws CoreException {
         Validators.requireNonEmpty(cmd.viewId, "viewId");
-        Validators.requireNonEmpty(cmd.objectId, "objectId");
+        Validators.requireNonNull(cmd.items, "items");
+        Validators.require(!cmd.items.isEmpty(), "items required");
+        List<Map<String, Object>> res = new java.util.ArrayList<>();
+        for (UpdateViewObjectBoundsItem item : cmd.items) {
+            res.add(updateBounds(cmd.viewId, item));
+        }
+        return res;
+    }
+
+    private Map<String, Object> updateBounds(String viewId, UpdateViewObjectBoundsItem item) throws CoreException {
+        Validators.requireNonEmpty(viewId, "viewId");
+        Validators.requireNonEmpty(item.objectId, "objectId");
         var model = ServiceRegistry.activeModel().getActiveModel();
         if (model == null) throw new ConflictException("no active model");
-        Object vo = ServiceRegistry.activeModel().findById(model, cmd.viewId);
+        Object vo = ServiceRegistry.activeModel().findById(model, viewId);
         if (!(vo instanceof IDiagramModel)) throw new NotFoundException("view not found");
         IDiagramModel view = (IDiagramModel) vo;
-        com.archimatetool.model.IDiagramModelObject dmo = ModelApi.findDiagramObjectById(view, cmd.objectId);
+        com.archimatetool.model.IDiagramModelObject dmo = ModelApi.findDiagramObjectById(view, item.objectId);
         if (dmo == null) throw new NotFoundException("object not found");
-        int x = cmd.x != null ? cmd.x : dmo.getBounds().getX();
-        int y = cmd.y != null ? cmd.y : dmo.getBounds().getY();
-        int w = cmd.w != null ? cmd.w : dmo.getBounds().getWidth();
-        int h = cmd.h != null ? cmd.h : dmo.getBounds().getHeight();
+        int x = item.x != null ? item.x : dmo.getBounds().getX();
+        int y = item.y != null ? item.y : dmo.getBounds().getY();
+        int w = item.w != null ? item.w : dmo.getBounds().getWidth();
+        int h = item.h != null ? item.h : dmo.getBounds().getHeight();
         com.archimatetool.model.IBounds b = com.archimatetool.model.IArchimateFactory.eINSTANCE.createBounds(x, y, w, h);
         final com.archimatetool.model.IBounds fb = b;
         org.eclipse.swt.widgets.Display.getDefault().syncExec(() -> dmo.setBounds(fb));
         return ModelApi.viewObjectToDto(dmo);
     }
 
-    /** Delete a diagram object from a view. */
+    /** Delete a diagram object from a view (legacy single-item). */
     public void deleteObject(DeleteViewObjectCmd cmd) throws CoreException {
+        var item = new DeleteViewObjectItem(cmd.objectId);
+        deleteObject(cmd.viewId, item);
+    }
+
+    /** Delete multiple diagram objects. */
+    public Map<String, Object> deleteObjects(DeleteViewObjectsCmd cmd) throws CoreException {
         Validators.requireNonEmpty(cmd.viewId, "viewId");
-        Validators.requireNonEmpty(cmd.objectId, "objectId");
+        Validators.requireNonNull(cmd.items, "items");
+        Validators.require(!cmd.items.isEmpty(), "items required");
+        for (DeleteViewObjectItem item : cmd.items) {
+            deleteObject(cmd.viewId, item);
+        }
+        Map<String, Object> resp = new java.util.HashMap<>();
+        resp.put("total", cmd.items.size());
+        resp.put("deleted", cmd.items.size());
+        return resp;
+    }
+
+    private void deleteObject(String viewId, DeleteViewObjectItem item) throws CoreException {
+        Validators.requireNonEmpty(viewId, "viewId");
+        Validators.requireNonEmpty(item.objectId, "objectId");
         var model = ServiceRegistry.activeModel().getActiveModel();
         if (model == null) throw new ConflictException("no active model");
-        Object vo = ServiceRegistry.activeModel().findById(model, cmd.viewId);
+        Object vo = ServiceRegistry.activeModel().findById(model, viewId);
         if (!(vo instanceof IDiagramModel)) throw new NotFoundException("view not found");
         IDiagramModel view = (IDiagramModel) vo;
-        com.archimatetool.model.IDiagramModelObject dmo = ModelApi.findDiagramObjectById(view, cmd.objectId);
+        com.archimatetool.model.IDiagramModelObject dmo = ModelApi.findDiagramObjectById(view, item.objectId);
         if (dmo == null) throw new NotFoundException("object not found");
         boolean ok = ServiceRegistry.views().deleteViewObject(dmo);
         if (!ok) throw new BadRequestException("cannot remove object");
     }
 
-    /** Move a diagram object to a new container. */
+    /** Move a diagram object to a new container (legacy single-item). */
     public Map<String, Object> moveObject(MoveViewObjectCmd cmd) throws CoreException {
+        var item = new MoveViewObjectItem(cmd.objectId, cmd.parentObjectId, cmd.x, cmd.y, cmd.w, cmd.h, cmd.keepExistingConnection);
+        return moveObject(cmd.viewId, item);
+    }
+
+    /** Move multiple diagram objects. */
+    public List<Map<String, Object>> moveObjects(MoveViewObjectsCmd cmd) throws CoreException {
         Validators.requireNonEmpty(cmd.viewId, "viewId");
-        Validators.requireNonEmpty(cmd.objectId, "objectId");
-        Validators.requireNonEmpty(cmd.parentObjectId, "parentObjectId");
+        Validators.requireNonNull(cmd.items, "items");
+        Validators.require(!cmd.items.isEmpty(), "items required");
+        List<Map<String, Object>> res = new java.util.ArrayList<>();
+        for (MoveViewObjectItem item : cmd.items) {
+            res.add(moveObject(cmd.viewId, item));
+        }
+        return res;
+    }
+
+    private Map<String, Object> moveObject(String viewId, MoveViewObjectItem item) throws CoreException {
+        Validators.requireNonEmpty(viewId, "viewId");
+        Validators.requireNonEmpty(item.objectId, "objectId");
+        Validators.requireNonEmpty(item.parentObjectId, "parentObjectId");
         var model = ServiceRegistry.activeModel().getActiveModel();
         if (model == null) throw new ConflictException("no active model");
-        Object vo = ServiceRegistry.activeModel().findById(model, cmd.viewId);
+        Object vo = ServiceRegistry.activeModel().findById(model, viewId);
         if (!(vo instanceof IDiagramModel)) throw new NotFoundException("view not found");
         IDiagramModel view = (IDiagramModel) vo;
-        com.archimatetool.model.IDiagramModelObject dmo = ModelApi.findDiagramObjectById(view, cmd.objectId);
+        com.archimatetool.model.IDiagramModelObject dmo = ModelApi.findDiagramObjectById(view, item.objectId);
         if (dmo == null) throw new NotFoundException("object not found");
         com.archimatetool.model.IDiagramModelObject parentObj = null;
         com.archimatetool.model.IDiagramModelContainer targetContainer = null;
-        if ("0".equals(cmd.parentObjectId)) {
+        if ("0".equals(item.parentObjectId)) {
             targetContainer = view;
         } else {
-            parentObj = ModelApi.findDiagramObjectById(view, cmd.parentObjectId);
+            parentObj = ModelApi.findDiagramObjectById(view, item.parentObjectId);
             if (parentObj == null) throw new NotFoundException("parentObjectId not found in view");
             if (!(parentObj instanceof com.archimatetool.model.IDiagramModelContainer)) {
                 throw new BadRequestException("parent object is not a container");
@@ -231,12 +335,12 @@ public class ViewsCore {
         if (parentObj != null && ModelApi.isAncestorOf(dmo, parentObj)) {
             throw new BadRequestException("cannot move into own descendant");
         }
-        Integer bx = cmd.x;
-        Integer by = cmd.y;
-        Integer bw = cmd.w;
-        Integer bh = cmd.h;
+        Integer bx = item.x;
+        Integer by = item.y;
+        Integer bw = item.w;
+        Integer bh = item.h;
         var moved = ServiceRegistry.views().moveObjectToContainer(dmo, targetContainer, bx, by, bw, bh);
-        if (!Boolean.TRUE.equals(cmd.keepExistingConnection) && parentObj != null) {
+        if (!Boolean.TRUE.equals(item.keepExistingConnection) && parentObj != null) {
             if (dmo instanceof com.archimatetool.model.IDiagramModelArchimateObject && parentObj instanceof com.archimatetool.model.IDiagramModelArchimateObject) {
                 var childEl = ((com.archimatetool.model.IDiagramModelArchimateObject) dmo).getArchimateConcept();
                 var parentEl = ((com.archimatetool.model.IDiagramModelArchimateObject) parentObj).getArchimateConcept();
