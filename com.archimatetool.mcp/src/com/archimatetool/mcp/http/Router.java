@@ -2,7 +2,9 @@ package com.archimatetool.mcp.http;
 
 import com.archimatetool.mcp.http.handlers.StatusHttpHandler;
 import com.archimatetool.mcp.http.handlers.OpenApiHttpHandler;
-import com.archimatetool.mcp.http.handlers.NotImplementedHttpHandler;
+import com.archimatetool.mcp.core.script.ScriptingCore;
+import com.archimatetool.mcp.http.handlers.ScriptEnginesHttpHandler;
+import com.archimatetool.mcp.http.handlers.ScriptRunHttpHandler;
 import com.archimatetool.mcp.http.handlers.TypesHttpHandler;
 import com.archimatetool.mcp.http.handlers.FoldersHttpHandler;
 import com.archimatetool.mcp.http.handlers.FolderEnsureHttpHandler;
@@ -28,8 +30,9 @@ public final class Router {
     public static void registerAll(HttpServer server) {
         server.createContext("/status", new StatusHttpHandler());
         server.createContext("/openapi.json", new OpenApiHttpHandler());
-        server.createContext("/script/engines", new NotImplementedHttpHandler());
-        server.createContext("/script/run", new NotImplementedHttpHandler());
+        ScriptingCore scriptingCore = new ScriptingCore();
+        server.createContext("/script/engines", new ScriptEnginesHttpHandler(scriptingCore));
+        server.createContext("/script/run", new ScriptRunHttpHandler(scriptingCore));
         server.createContext("/types", new TypesHttpHandler());
         server.createContext("/folders", new FoldersHttpHandler());
         server.createContext("/folder/ensure", new FolderEnsureHttpHandler());

@@ -497,12 +497,48 @@
 
     "/script/engines": {
       "get": {
-        "summary": "List available script engines (temporarily disabled)",
+        "summary": "List available script engines",
         "tags": ["Script"],
-        "responses": { "501": { "description": "Not Implemented" } }
+        "responses": {
+          "200": {
+            "description": "Engine list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ScriptEnginesResponse" }
+              }
+            }
+          }
+        }
       }
     },
-    "/script/run": { "post": { "summary": "Run a script (temporarily disabled)", "tags": ["Script"], "responses": { "501": { "description": "Not Implemented" } } } }
+    "/script/run": {
+      "post": {
+        "summary": "Run a script",
+        "tags": ["Script"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ScriptRunRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ScriptRunResponse" }
+              }
+            }
+          },
+          "400": { "description": "Bad Request" },
+          "409": { "description": "Conflict (no active model)" },
+          "501": { "description": "Not Implemented" },
+          "504": { "description": "Timeout" }
+        }
+      }
+    }
   },
 
   "components": {
@@ -722,6 +758,37 @@
           "target": { "$ref": "#/components/schemas/Element" }
         },
         "required": ["relation"]
+      },
+      "ScriptEnginesResponse": {
+        "type": "object",
+        "properties": {
+          "installed": { "type": "boolean" },
+          "engines": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["installed", "engines"]
+      },
+      "ScriptRunRequest": {
+        "type": "object",
+        "properties": {
+          "engine": { "type": "string" },
+          "code": { "type": "string" },
+          "timeoutMs": { "type": "integer" },
+          "bindings": { "type": "object", "additionalProperties": {} },
+          "modelId": { "type": "string" },
+          "log": { "type": "string", "enum": ["stdout", "script"] }
+        },
+        "required": ["code"]
+      },
+      "ScriptRunResponse": {
+        "type": "object",
+        "properties": {
+          "ok": { "type": "boolean" },
+          "result": {},
+          "stdout": { "type": "string" },
+          "stderr": { "type": "string" },
+          "durationMs": { "type": "integer" }
+        },
+        "required": ["ok", "durationMs"]
       }
     }
   }
