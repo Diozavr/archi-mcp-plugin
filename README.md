@@ -10,6 +10,9 @@
 - Порт HTTP сервера можно изменить в Archi → Preferences → MCP.
 - Приоритет источников порта: System Property `archi.mcp.port` → Env `ARCHI_MCP_PORT` → Preferences → Default (`8765`).
 
+## Toolbar (MCP Server)
+Плагин добавляет отдельную панель инструментов "MCP" с переключателем "MCP Server". Иконка зелёная при запущенном сервере и красная при остановленном. Нажатие запускает или останавливает сервер без перезапуска Archi. Тултип показывает текущий порт (127.0.0.1:PORT). Если панели не видно, включите "MCP" в `Window → Customize Perspective… → Tool Bar Visibility`. При занятом порте отображается сообщение об ошибке.
+
 ## Быстрый старт (PDE/Eclipse)
 1) Импортируйте `com.archimatetool.mcp` как PDE‑плагин.
 2) Запустите Eclipse Application (Archi). Плагин стартует автоматически.

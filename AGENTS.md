@@ -7,6 +7,7 @@
 - Для REST‑проверок используйте `curl` и `jq`.
 
 ## Конфигурация
+- Сервер MCP можно запускать и останавливать кнопкой на отдельной панели инструментов "MCP"; иконка отражает состояние.
 - Порт HTTP сервера MCP задаётся через System Property `archi.mcp.port`, переменную окружения `ARCHI_MCP_PORT` или Preferences (Archi → Preferences → MCP). Приоритет: System Property → Env → Preferences → Default (`8765`).
 
 ## Инварианты API

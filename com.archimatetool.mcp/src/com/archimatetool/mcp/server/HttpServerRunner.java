@@ -11,39 +11,33 @@ public class HttpServerRunner {
     private static final String HOST = Config.DEFAULT_HOST;
 
     private HttpServer server;
-    private int boundPort = -1;
+    private int port = -1;
 
     public synchronized void start() throws IOException {
-        int port = Config.resolvePort();
-        IOException last = null;
-        for (int attempt = 0; attempt < 10; attempt++) {
-            int p = port + attempt;
-            try {
-                server = HttpServer.create(new InetSocketAddress(HOST, p), 0);
-                boundPort = p;
-                last = null;
-                break;
-            } catch (IOException ex) {
-                last = ex;
-            }
+        if (server != null) {
+            throw new IllegalStateException("Server already running");
         }
-        if (server == null) {
-            if (last != null) throw last;
-            throw new IOException("Failed to bind Archi MCP HTTP server");
+        int p = Config.resolvePort();
+        try {
+            server = HttpServer.create(new InetSocketAddress(HOST, p), 0);
+            port = p;
+        } catch (IOException ex) {
+            throw new IOException("Port in use: " + p, ex);
         }
 
         Router.registerAll(server);
         server.setExecutor(java.util.concurrent.Executors.newCachedThreadPool());
         server.start();
-        System.out.println("[Archi MCP] Listening at http://" + HOST + ":" + boundPort);
+        System.out.println("[Archi MCP] Listening at http://" + HOST + ":" + port);
     }
 
     public synchronized void stop() {
-        if (server != null) {
-            server.stop(0);
-            server = null;
+        if (server == null) {
+            throw new IllegalStateException("Server not running");
         }
-        boundPort = -1;
+        server.stop(0);
+        server = null;
+        port = -1;
     }
 
     public synchronized void restart() throws IOException {
@@ -51,9 +45,12 @@ public class HttpServerRunner {
         start();
     }
 
-    public int getBoundPort() {
-        return boundPort;
+    public synchronized boolean isRunning() {
+        return server != null;
+    }
+
+    public synchronized int getPort() {
+        return port;
     }
 }
-
 
