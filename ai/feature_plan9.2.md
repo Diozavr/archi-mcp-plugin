@@ -64,33 +64,45 @@
 1) Чистка ToolRegistry от single-инструментов
    - Удалить/заменить: `create_element`, `add_element_to_view`, и пр. одиночные операции.
    - Оставить/добавить только перечисленные batch-инструменты (см. список выше).
-   - Статус: [todo]
+   - Статус: [done]
+   - Сделано: удалены одиночные инструменты `create_element`, `add_element_to_view`.
+   - Осталось: —
 
 2) Добавить новые MCP-инструменты
    - Элементы: `get_elements`, `create_elements`, `update_elements`, `delete_elements`.
    - Отношения: `get_relations`, `create_relations`, `update_relations`, `delete_relations`.
    - Виды: `get_view`, `delete_view`, `add_elements_to_view`, `add_relations_to_view`, `update_objects_bounds`, `move_objects_to_container`, `remove_objects_from_view`.
    - Для массивов — валидация `<=50`.
-   - Статус: [todo]
+   - Статус: [done]
+   - Сделано: добавлены перечисленные batch-инструменты с валидацией размера массивов.
+   - Осталось: —
 
 3) Маппинг параметров → core DTO
    - Преобразование имен MCP-параметров в поля DTO и сборка команд/квери.
    - В частности: сборка `AddElementsToViewCmd`/`AddRelationsToViewCmd`, `UpdateViewObjectsBoundsCmd`, `MoveViewObjectsCmd` из массивов items.
-   - Статус: [todo]
+   - Статус: [done]
+   - Сделано: реализован маппинг параметров в DTO для всех новых инструментов.
+   - Осталось: —
 
 4) Обработка ошибок
    - При превышении лимита — BadRequestException с пояснением.
    - Проброс CoreException через существующий обработчик HTTP → JSON-RPC слой.
-   - Статус: [todo]
+   - Статус: [done]
+   - Сделано: добавлена проверка лимита и выброс `BadRequestException`.
+   - Осталось: —
 
 5) Обновить документацию MCP-инструментов
    - Описание параметров в `ToolParam` (описания, примеры для ids/items, лимиты).
-   - Статус: [todo]
+   - Статус: [partial]
+   - Сделано: добавлены описания и отметки лимитов в `ToolParam`.
+   - Осталось: дополнить примеры и синхронизировать описания в `server.py`.
 
 6) Тесты
    - Юнит/интеграция: Smoke (Python) уже покрывает batch REST-флоу; добавить быстрые проверки MCP-инструментов через JSON-RPC (локально в Archi).
    - Минимум: create/list/delete для элементов/отношений; добавление на вид; bounds/move; удаление объектов вида.
-   - Статус: [todo]
+   - Статус: [partial]
+   - Сделано: выполнены unit-тесты Java.
+   - Осталось: выполнить smoke и JSON-RPC проверки.
 
 ## DoD (Definition of Done)
 - ToolRegistry предоставляет MCP-инструменты, полностью покрывающие REST-возможности, определённые в `openapi.json`.

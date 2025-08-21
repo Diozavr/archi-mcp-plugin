@@ -7,10 +7,13 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.archimatetool.mcp.core.elements.ElementsCore;
+import com.archimatetool.mcp.core.errors.BadRequestException;
 import com.archimatetool.mcp.core.folders.FoldersCore;
 import com.archimatetool.mcp.core.model.ModelCore;
+import com.archimatetool.mcp.core.relations.RelationsCore;
 import com.archimatetool.mcp.core.search.SearchCore;
 import com.archimatetool.mcp.core.types.*;
 import com.archimatetool.mcp.core.views.ViewsCore;
@@ -21,6 +24,7 @@ import com.archimatetool.mcp.core.views.ViewsCore;
 public class ToolRegistry {
     private static final Map<String, Tool> TOOLS = new LinkedHashMap<>();
     private static final ElementsCore elementsCore = new ElementsCore();
+    private static final RelationsCore relationsCore = new RelationsCore();
     private static final ViewsCore viewsCore = new ViewsCore();
     private static final FoldersCore foldersCore = new FoldersCore();
     private static final SearchCore searchCore = new SearchCore();
@@ -57,6 +61,27 @@ public class ToolRegistry {
                 return viewsCore.createView(cmd);
             }
         ));
+        // get_view
+        register(new Tool(
+            "get_view",
+            "Get view",
+            Arrays.asList(
+                new ToolParam("view_id", "string", true, "View id", null)
+            ),
+            params -> viewsCore.getView(new GetViewQuery((String) params.get("view_id")))
+        ));
+        // delete_view
+        register(new Tool(
+            "delete_view",
+            "Delete view",
+            Arrays.asList(
+                new ToolParam("view_id", "string", true, "View id", null)
+            ),
+            params -> {
+                viewsCore.deleteView(new DeleteViewCmd((String) params.get("view_id")));
+                return Map.of("deleted", Boolean.TRUE);
+            }
+        ));
         // get_view_content
         register(new Tool(
             "get_view_content",
@@ -65,66 +90,6 @@ public class ToolRegistry {
                 new ToolParam("view_id", "string", true, "View id", null)
             ),
             params -> viewsCore.getViewContent(new GetViewContentQuery((String) params.get("view_id")))
-        ));
-        // create_element
-        register(new Tool(
-            "create_element",
-            "Create element",
-            Arrays.asList(
-                new ToolParam("type", "string", true, "Element type in kebab-case", null),
-                new ToolParam("name", "string", true, "Element name", null),
-                new ToolParam("folder_id", "string", false, "Target folder id", null)
-            ),
-            params -> {
-                CreateElementItem item = new CreateElementItem(
-                    null,
-                    (String) params.get("type"),
-                    (String) params.get("name"),
-                    (String) params.get("folder_id"),
-                    null,
-                    null
-                );
-                return elementsCore.createElements(new CreateElementsCmd(List.of(item))).get(0);
-            }
-        ));
-        // add_element_to_view
-        register(new Tool(
-            "add_element_to_view",
-            "Add element to view",
-            Arrays.asList(
-                new ToolParam("view_id", "string", true, "View id", null),
-                new ToolParam("element_id", "string", true, "Element id", null),
-                new ToolParam("parent_object_id", "string", false, "Parent diagram object id", null),
-                new ToolParam("bounds", "object", false, "Bounds {x,y,w,h}", null)
-            ),
-            params -> {
-                @SuppressWarnings("unchecked") Map<String, Object> b = (Map<String, Object>) params.get("bounds");
-                Integer x = b != null && b.get("x") instanceof Number ? ((Number) b.get("x")).intValue() : null;
-                Integer y = b != null && b.get("y") instanceof Number ? ((Number) b.get("y")).intValue() : null;
-                Integer w = b != null && b.get("w") instanceof Number ? ((Number) b.get("w")).intValue() : null;
-                Integer h = b != null && b.get("h") instanceof Number ? ((Number) b.get("h")).intValue() : null;
-                AddElementToViewItem item = new AddElementToViewItem(
-                    (String) params.get("element_id"),
-                    (String) params.get("parent_object_id"),
-                    x, y, w, h,
-                    null
-                );
-                AddElementsToViewCmd cmd = new AddElementsToViewCmd(
-                    (String) params.get("view_id"),
-                    List.of(item)
-                );
-                return viewsCore.addElements(cmd).get(0);
-            }
-        ));
-        // save_model
-        register(new Tool(
-            "save_model",
-            "Save model",
-            Arrays.asList(
-                new ToolParam("model_id", "string", false, "Model id", null),
-                new ToolParam("create_backup", "boolean", false, "Create .bak file", Boolean.TRUE)
-            ),
-            params -> modelCore.saveModel()
         ));
         // get_view_image
         register(new Tool(
@@ -157,6 +122,329 @@ public class ToolRegistry {
                     "length", img.data.length
                 );
             }
+        ));
+        // get_elements
+        register(new Tool(
+            "get_elements",
+            "Get elements",
+            Arrays.asList(
+                new ToolParam("ids", "array", true, "Element ids", null),
+                new ToolParam("include_relations", "boolean", false, "Include relations", Boolean.FALSE),
+                new ToolParam("include_elements", "boolean", false, "Include relation endpoints", Boolean.FALSE)
+            ),
+            params -> {
+                @SuppressWarnings("unchecked") List<String> ids = (List<String>) params.get("ids");
+                validateArraySize(ids, 50);
+                boolean incRel = Boolean.TRUE.equals(params.get("include_relations"));
+                boolean incEl = Boolean.TRUE.equals(params.get("include_elements"));
+                List<Map<String, Object>> res = new ArrayList<>();
+                for (String id : ids) {
+                    res.add(elementsCore.getElement(new GetElementQuery(id, incRel, incEl)));
+                }
+                return res;
+            }
+        ));
+        // create_elements
+        register(new Tool(
+            "create_elements",
+            "Create elements",
+            Arrays.asList(
+                new ToolParam("items", "array", true, "Items to create", null)
+            ),
+            params -> {
+                @SuppressWarnings("unchecked") List<Map<String, Object>> items =
+                    (List<Map<String, Object>>) params.get("items");
+                validateArraySize(items, 50);
+                List<CreateElementItem> list = new ArrayList<>();
+                for (Map<String, Object> i : items) {
+                    @SuppressWarnings("unchecked") Map<String,String> props =
+                        (Map<String,String>) i.get("properties");
+                    list.add(new CreateElementItem(
+                        (String) i.get("modelId"),
+                        (String) i.get("type"),
+                        (String) i.get("name"),
+                        (String) i.get("folderId"),
+                        props,
+                        (String) i.get("documentation")
+                    ));
+                }
+                return elementsCore.createElements(new CreateElementsCmd(list));
+            }
+        ));
+        // update_elements
+        register(new Tool(
+            "update_elements",
+            "Update elements",
+            Arrays.asList(
+                new ToolParam("items", "array", true, "Items to update", null)
+            ),
+            params -> {
+                @SuppressWarnings("unchecked") List<Map<String, Object>> items =
+                    (List<Map<String, Object>>) params.get("items");
+                validateArraySize(items, 50);
+                List<UpdateElementItem> list = new ArrayList<>();
+                for (Map<String, Object> i : items) {
+                    @SuppressWarnings("unchecked") Map<String,String> props =
+                        (Map<String,String>) i.get("properties");
+                    list.add(new UpdateElementItem(
+                        (String) i.get("id"),
+                        (String) i.get("name"),
+                        (String) i.get("type"),
+                        (String) i.get("folderId"),
+                        props,
+                        (String) i.get("documentation")
+                    ));
+                }
+                return elementsCore.updateElements(new UpdateElementsCmd(list));
+            }
+        ));
+        // delete_elements
+        register(new Tool(
+            "delete_elements",
+            "Delete elements",
+            Arrays.asList(
+                new ToolParam("ids", "array", true, "Element ids", null)
+            ),
+            params -> {
+                @SuppressWarnings("unchecked") List<String> ids = (List<String>) params.get("ids");
+                validateArraySize(ids, 50);
+                List<DeleteElementItem> list = ids.stream()
+                    .map(DeleteElementItem::new)
+                    .collect(Collectors.toList());
+                return elementsCore.deleteElements(new DeleteElementsCmd(list));
+            }
+        ));
+        // get_relations
+        register(new Tool(
+            "get_relations",
+            "Get relations",
+            Arrays.asList(
+                new ToolParam("ids", "array", true, "Relation ids", null)
+            ),
+            params -> {
+                @SuppressWarnings("unchecked") List<String> ids = (List<String>) params.get("ids");
+                validateArraySize(ids, 50);
+                List<Map<String, Object>> res = new ArrayList<>();
+                for (String id : ids) {
+                    res.add(relationsCore.getRelation(new GetRelationQuery(id)));
+                }
+                return res;
+            }
+        ));
+        // create_relations
+        register(new Tool(
+            "create_relations",
+            "Create relations",
+            Arrays.asList(
+                new ToolParam("items", "array", true, "Items to create", null)
+            ),
+            params -> {
+                @SuppressWarnings("unchecked") List<Map<String, Object>> items =
+                    (List<Map<String, Object>>) params.get("items");
+                validateArraySize(items, 50);
+                List<CreateRelationItem> list = new ArrayList<>();
+                for (Map<String, Object> i : items) {
+                    @SuppressWarnings("unchecked") Map<String,String> props =
+                        (Map<String,String>) i.get("properties");
+                    list.add(new CreateRelationItem(
+                        (String) i.get("type"),
+                        (String) i.get("name"),
+                        (String) i.get("sourceId"),
+                        (String) i.get("targetId"),
+                        (String) i.get("folderId"),
+                        props,
+                        (String) i.get("documentation")
+                    ));
+                }
+                return relationsCore.createRelations(new CreateRelationsCmd(list));
+            }
+        ));
+        // update_relations
+        register(new Tool(
+            "update_relations",
+            "Update relations",
+            Arrays.asList(
+                new ToolParam("items", "array", true, "Items to update", null)
+            ),
+            params -> {
+                @SuppressWarnings("unchecked") List<Map<String, Object>> items =
+                    (List<Map<String, Object>>) params.get("items");
+                validateArraySize(items, 50);
+                List<UpdateRelationItem> list = new ArrayList<>();
+                for (Map<String, Object> i : items) {
+                    @SuppressWarnings("unchecked") Map<String,String> props =
+                        (Map<String,String>) i.get("properties");
+                    list.add(new UpdateRelationItem(
+                        (String) i.get("id"),
+                        (String) i.get("name"),
+                        (String) i.get("type"),
+                        props,
+                        (String) i.get("documentation")
+                    ));
+                }
+                return relationsCore.updateRelations(new UpdateRelationsCmd(list));
+            }
+        ));
+        // delete_relations
+        register(new Tool(
+            "delete_relations",
+            "Delete relations",
+            Arrays.asList(
+                new ToolParam("ids", "array", true, "Relation ids", null)
+            ),
+            params -> {
+                @SuppressWarnings("unchecked") List<String> ids = (List<String>) params.get("ids");
+                validateArraySize(ids, 50);
+                List<DeleteRelationItem> list = ids.stream()
+                    .map(DeleteRelationItem::new)
+                    .collect(Collectors.toList());
+                return relationsCore.deleteRelations(new DeleteRelationsCmd(list));
+            }
+        ));
+        // add_elements_to_view
+        register(new Tool(
+            "add_elements_to_view",
+            "Add elements to view",
+            Arrays.asList(
+                new ToolParam("view_id", "string", true, "View id", null),
+                new ToolParam("items", "array", true, "Items to add", null)
+            ),
+            params -> {
+                String viewId = (String) params.get("view_id");
+                @SuppressWarnings("unchecked") List<Map<String, Object>> items =
+                    (List<Map<String, Object>>) params.get("items");
+                validateArraySize(items, 50);
+                List<AddElementToViewItem> list = new ArrayList<>();
+                for (Map<String, Object> i : items) {
+                    Integer x = asInt(i.get("x"));
+                    Integer y = asInt(i.get("y"));
+                    Integer w = asInt(i.get("w"));
+                    Integer h = asInt(i.get("h"));
+                    @SuppressWarnings("unchecked") Map<String,String> style =
+                        (Map<String,String>) i.get("style");
+                    list.add(new AddElementToViewItem(
+                        (String) i.get("elementId"),
+                        (String) i.get("parentObjectId"),
+                        x, y, w, h,
+                        style
+                    ));
+                }
+                AddElementsToViewCmd cmd = new AddElementsToViewCmd(viewId, list);
+                return viewsCore.addElements(cmd);
+            }
+        ));
+        // add_relations_to_view
+        register(new Tool(
+            "add_relations_to_view",
+            "Add relations to view",
+            Arrays.asList(
+                new ToolParam("view_id", "string", true, "View id", null),
+                new ToolParam("items", "array", true, "Items to add", null)
+            ),
+            params -> {
+                String viewId = (String) params.get("view_id");
+                @SuppressWarnings("unchecked") List<Map<String, Object>> items =
+                    (List<Map<String, Object>>) params.get("items");
+                validateArraySize(items, 50);
+                List<AddRelationToViewItem> list = new ArrayList<>();
+                for (Map<String, Object> i : items) {
+                    list.add(new AddRelationToViewItem(
+                        (String) i.get("relationId"),
+                        (String) i.get("sourceObjectId"),
+                        (String) i.get("targetObjectId"),
+                        (String) i.get("policy"),
+                        (Boolean) i.get("suppressWhenNested")
+                    ));
+                }
+                AddRelationsToViewCmd cmd = new AddRelationsToViewCmd(viewId, list);
+                return viewsCore.addRelations(cmd);
+            }
+        ));
+        // update_objects_bounds
+        register(new Tool(
+            "update_objects_bounds",
+            "Update view objects bounds",
+            Arrays.asList(
+                new ToolParam("view_id", "string", true, "View id", null),
+                new ToolParam("items", "array", true, "Items to update", null)
+            ),
+            params -> {
+                String viewId = (String) params.get("view_id");
+                @SuppressWarnings("unchecked") List<Map<String, Object>> items =
+                    (List<Map<String, Object>>) params.get("items");
+                validateArraySize(items, 50);
+                List<UpdateViewObjectBoundsItem> list = new ArrayList<>();
+                for (Map<String, Object> i : items) {
+                    list.add(new UpdateViewObjectBoundsItem(
+                        (String) i.get("objectId"),
+                        asInt(i.get("x")),
+                        asInt(i.get("y")),
+                        asInt(i.get("w")),
+                        asInt(i.get("h"))
+                    ));
+                }
+                UpdateViewObjectsBoundsCmd cmd = new UpdateViewObjectsBoundsCmd(viewId, list);
+                return viewsCore.updateBounds(cmd);
+            }
+        ));
+        // move_objects_to_container
+        register(new Tool(
+            "move_objects_to_container",
+            "Move view objects to container",
+            Arrays.asList(
+                new ToolParam("view_id", "string", true, "View id", null),
+                new ToolParam("items", "array", true, "Items to move", null)
+            ),
+            params -> {
+                String viewId = (String) params.get("view_id");
+                @SuppressWarnings("unchecked") List<Map<String, Object>> items =
+                    (List<Map<String, Object>>) params.get("items");
+                validateArraySize(items, 50);
+                List<MoveViewObjectItem> list = new ArrayList<>();
+                for (Map<String, Object> i : items) {
+                    list.add(new MoveViewObjectItem(
+                        (String) i.get("objectId"),
+                        (String) i.get("parentObjectId"),
+                        asInt(i.get("x")),
+                        asInt(i.get("y")),
+                        asInt(i.get("w")),
+                        asInt(i.get("h")),
+                        (Boolean) i.get("keepExistingConnection")
+                    ));
+                }
+                MoveViewObjectsCmd cmd = new MoveViewObjectsCmd(viewId, list);
+                return viewsCore.moveObjects(cmd);
+            }
+        ));
+        // remove_objects_from_view
+        register(new Tool(
+            "remove_objects_from_view",
+            "Remove objects from view",
+            Arrays.asList(
+                new ToolParam("view_id", "string", true, "View id", null),
+                new ToolParam("object_ids", "array", true, "Object ids", null)
+            ),
+            params -> {
+                String viewId = (String) params.get("view_id");
+                @SuppressWarnings("unchecked") List<String> ids =
+                    (List<String>) params.get("object_ids");
+                validateArraySize(ids, 50);
+                List<DeleteViewObjectItem> list = ids.stream()
+                    .map(DeleteViewObjectItem::new)
+                    .collect(Collectors.toList());
+                DeleteViewObjectsCmd cmd = new DeleteViewObjectsCmd(viewId, list);
+                return viewsCore.deleteObjects(cmd);
+            }
+        ));
+        // save_model
+        register(new Tool(
+            "save_model",
+            "Save model",
+            Arrays.asList(
+                new ToolParam("model_id", "string", false, "Model id", null),
+                new ToolParam("create_backup", "boolean", false, "Create .bak file", Boolean.TRUE)
+            ),
+            params -> modelCore.saveModel()
         ));
         // search
         register(new Tool(
@@ -218,10 +506,10 @@ public class ToolRegistry {
                 var pkg = com.archimatetool.model.IArchimatePackage.eINSTANCE;
                 var elementTypes = pkg.getEClassifiers().stream()
                     .filter(c -> c instanceof org.eclipse.emf.ecore.EClass && pkg.getArchimateElement().isSuperTypeOf((org.eclipse.emf.ecore.EClass) c))
-                    .map(c -> ((org.eclipse.emf.ecore.EClass) c).getName()).collect(java.util.stream.Collectors.toList());
+                    .map(c -> ((org.eclipse.emf.ecore.EClass) c).getName()).collect(Collectors.toList());
                 var relationTypes = pkg.getEClassifiers().stream()
                     .filter(c -> c instanceof org.eclipse.emf.ecore.EClass && pkg.getArchimateRelationship().isSuperTypeOf((org.eclipse.emf.ecore.EClass) c))
-                    .map(c -> ((org.eclipse.emf.ecore.EClass) c).getName()).collect(java.util.stream.Collectors.toList());
+                    .map(c -> ((org.eclipse.emf.ecore.EClass) c).getName()).collect(Collectors.toList());
                 return Map.of(
                     "elementTypes", elementTypes,
                     "relationTypes", relationTypes,
@@ -265,6 +553,15 @@ public class ToolRegistry {
             out.add(t.toMap());
         }
         return out;
+    }
+
+    private static void validateArraySize(List<?> list, int max) {
+        if (list == null) throw new BadRequestException("array required");
+        if (list.size() > max) throw new BadRequestException("too many items, max " + max);
+    }
+
+    private static Integer asInt(Object o) {
+        return o instanceof Number ? ((Number) o).intValue() : null;
     }
 }
 
