@@ -8,15 +8,12 @@ import java.util.Map;
 import com.archimatetool.mcp.core.errors.BadRequestException;
 import com.archimatetool.mcp.core.errors.ConflictException;
 import com.archimatetool.mcp.core.errors.NotFoundException;
-import com.archimatetool.mcp.core.types.CreateElementCmd;
 import com.archimatetool.mcp.core.types.CreateElementItem;
 import com.archimatetool.mcp.core.types.CreateElementsCmd;
-import com.archimatetool.mcp.core.types.DeleteElementCmd;
 import com.archimatetool.mcp.core.types.DeleteElementItem;
 import com.archimatetool.mcp.core.types.DeleteElementsCmd;
 import com.archimatetool.mcp.core.types.GetElementQuery;
 import com.archimatetool.mcp.core.types.ListElementRelationsQuery;
-import com.archimatetool.mcp.core.types.UpdateElementCmd;
 import com.archimatetool.mcp.core.types.UpdateElementItem;
 import com.archimatetool.mcp.core.types.UpdateElementsCmd;
 import com.archimatetool.mcp.core.validation.Validators;
@@ -37,12 +34,6 @@ public class ElementsCore {
             throw new ConflictException("no active model");
         }
         return model;
-    }
-
-    /** Create a new element in the active model (legacy single-item). */
-    public Map<String, Object> createElement(CreateElementCmd cmd) {
-        var item = new CreateElementItem(null, cmd.type, cmd.name, cmd.folderId, null, null);
-        return createElement(item);
     }
 
     /** Create multiple elements in the active model. */
@@ -86,12 +77,6 @@ public class ElementsCore {
         return dto;
     }
 
-    /** Update element fields (legacy single-item). */
-    public Map<String, Object> updateElement(UpdateElementCmd cmd) {
-        var item = new UpdateElementItem(cmd.id, cmd.name, null, null, null, null);
-        return updateElement(item);
-    }
-
     /** Update multiple elements. */
     public List<Map<String, Object>> updateElements(UpdateElementsCmd cmd) {
         Validators.requireNonNull(cmd.items, "items");
@@ -116,12 +101,6 @@ public class ElementsCore {
             org.eclipse.swt.widgets.Display.getDefault().syncExec(() -> el.setName(n));
         }
         return ModelApi.elementToDto(el);
-    }
-
-    /** Delete element by id (legacy single-item). */
-    public void deleteElement(DeleteElementCmd cmd) {
-        var item = new DeleteElementItem(cmd.id);
-        deleteElement(item);
     }
 
     /** Delete multiple elements. */

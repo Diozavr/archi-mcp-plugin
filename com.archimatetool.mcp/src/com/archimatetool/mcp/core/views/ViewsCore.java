@@ -10,10 +10,8 @@ import com.archimatetool.mcp.core.errors.ConflictException;
 import com.archimatetool.mcp.core.errors.CoreException;
 import com.archimatetool.mcp.core.errors.NotFoundException;
 import com.archimatetool.mcp.core.errors.UnprocessableException;
-import com.archimatetool.mcp.core.types.AddElementToViewCmd;
 import com.archimatetool.mcp.core.types.AddElementToViewItem;
 import com.archimatetool.mcp.core.types.AddElementsToViewCmd;
-import com.archimatetool.mcp.core.types.AddRelationToViewCmd;
 import com.archimatetool.mcp.core.types.AddRelationToViewItem;
 import com.archimatetool.mcp.core.types.AddRelationsToViewCmd;
 import com.archimatetool.mcp.core.types.CreateViewCmd;
@@ -21,13 +19,10 @@ import com.archimatetool.mcp.core.types.DeleteViewCmd;
 import com.archimatetool.mcp.core.types.GetViewContentQuery;
 import com.archimatetool.mcp.core.types.GetViewImageQuery;
 import com.archimatetool.mcp.core.types.GetViewQuery;
-import com.archimatetool.mcp.core.types.DeleteViewObjectCmd;
 import com.archimatetool.mcp.core.types.DeleteViewObjectItem;
 import com.archimatetool.mcp.core.types.DeleteViewObjectsCmd;
-import com.archimatetool.mcp.core.types.MoveViewObjectCmd;
 import com.archimatetool.mcp.core.types.MoveViewObjectItem;
 import com.archimatetool.mcp.core.types.MoveViewObjectsCmd;
-import com.archimatetool.mcp.core.types.UpdateViewObjectBoundsCmd;
 import com.archimatetool.mcp.core.types.UpdateViewObjectBoundsItem;
 import com.archimatetool.mcp.core.types.UpdateViewObjectsBoundsCmd;
 import com.archimatetool.mcp.core.validation.Validators;
@@ -92,12 +87,6 @@ public class ViewsCore {
         return ModelApi.viewContentToDto((IDiagramModel) obj);
     }
 
-    /** Add element to a view or container within the view (legacy single-item). */
-    public Map<String, Object> addElement(AddElementToViewCmd cmd) throws CoreException {
-        var item = new AddElementToViewItem(cmd.elementId, cmd.parentObjectId, cmd.x, cmd.y, cmd.w, cmd.h, null);
-        return addElement(cmd.viewId, item);
-    }
-
     /** Add multiple elements to a view. */
     public List<Map<String, Object>> addElements(AddElementsToViewCmd cmd) throws CoreException {
         Validators.requireNonEmpty(cmd.viewId, "viewId");
@@ -145,13 +134,6 @@ public class ViewsCore {
             dmo = ServiceRegistry.views().addElementToView(view, el, x, y, w, h);
         }
         return Map.of("objectId", dmo.getId());
-    }
-
-    /** Add relation to a view (legacy single-item). */
-    public Map<String, Object> addRelation(AddRelationToViewCmd cmd) throws CoreException {
-        var item = new AddRelationToViewItem(cmd.relationId, cmd.sourceObjectId, cmd.targetObjectId, cmd.policy,
-                cmd.suppressWhenNested);
-        return addRelation(cmd.viewId, item);
     }
 
     /** Add multiple relations to a view. */
@@ -219,12 +201,6 @@ public class ViewsCore {
         return ModelApi.connectionToDto(conn);
     }
 
-    /** Update bounds of a diagram object (legacy single-item). */
-    public Map<String, Object> updateBounds(UpdateViewObjectBoundsCmd cmd) throws CoreException {
-        var item = new UpdateViewObjectBoundsItem(cmd.objectId, cmd.x, cmd.y, cmd.w, cmd.h);
-        return updateBounds(cmd.viewId, item);
-    }
-
     /** Update bounds of multiple diagram objects. */
     public List<Map<String, Object>> updateBounds(UpdateViewObjectsBoundsCmd cmd) throws CoreException {
         Validators.requireNonEmpty(cmd.viewId, "viewId");
@@ -257,12 +233,6 @@ public class ViewsCore {
         return ModelApi.viewObjectToDto(dmo);
     }
 
-    /** Delete a diagram object from a view (legacy single-item). */
-    public void deleteObject(DeleteViewObjectCmd cmd) throws CoreException {
-        var item = new DeleteViewObjectItem(cmd.objectId);
-        deleteObject(cmd.viewId, item);
-    }
-
     /** Delete multiple diagram objects. */
     public Map<String, Object> deleteObjects(DeleteViewObjectsCmd cmd) throws CoreException {
         Validators.requireNonEmpty(cmd.viewId, "viewId");
@@ -289,12 +259,6 @@ public class ViewsCore {
         if (dmo == null) throw new NotFoundException("object not found");
         boolean ok = ServiceRegistry.views().deleteViewObject(dmo);
         if (!ok) throw new BadRequestException("cannot remove object");
-    }
-
-    /** Move a diagram object to a new container (legacy single-item). */
-    public Map<String, Object> moveObject(MoveViewObjectCmd cmd) throws CoreException {
-        var item = new MoveViewObjectItem(cmd.objectId, cmd.parentObjectId, cmd.x, cmd.y, cmd.w, cmd.h, cmd.keepExistingConnection);
-        return moveObject(cmd.viewId, item);
     }
 
     /** Move multiple diagram objects. */
