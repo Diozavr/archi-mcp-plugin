@@ -101,7 +101,7 @@ public class CoreBatchValidationTest {
 
     @Test(expected = BadRequestException.class)
     public void addElementsToViewRequireElementId() throws Exception {
-        List<AddElementToViewItem> items = List.of(new AddElementToViewItem(null, null, null, null, null, null));
+        List<AddElementToViewItem> items = List.of(new AddElementToViewItem(null, null, null, null, null, null, null));
         new ViewsCore().addElements(new AddElementsToViewCmd("v", items));
     }
 

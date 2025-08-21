@@ -41,7 +41,7 @@ public class ElementsCore {
 
     /** Create a new element in the active model (legacy single-item). */
     public Map<String, Object> createElement(CreateElementCmd cmd) {
-        var item = new CreateElementItem(null, cmd.type, cmd.name, cmd.folderId, cmd.properties, cmd.documentation);
+        var item = new CreateElementItem(null, cmd.type, cmd.name, cmd.folderId, null, null);
         return createElement(item);
     }
 
@@ -88,7 +88,7 @@ public class ElementsCore {
 
     /** Update element fields (legacy single-item). */
     public Map<String, Object> updateElement(UpdateElementCmd cmd) {
-        var item = new UpdateElementItem(cmd.id, cmd.name, cmd.type, cmd.folderId, cmd.properties, cmd.documentation);
+        var item = new UpdateElementItem(cmd.id, cmd.name, null, null, null, null);
         return updateElement(item);
     }
 

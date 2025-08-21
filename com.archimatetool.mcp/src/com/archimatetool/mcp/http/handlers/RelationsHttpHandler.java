@@ -69,7 +69,7 @@ public class RelationsHttpHandler implements HttpHandler {
         if (jr.isArrayRoot()) {
             for (int i = 0; i < jr.arraySize(); i++) {
                 JsonReader it = jr.at(i);
-                items.add(new CreateRelationItem(null, it.optString("type"), it.optString("name"),
+                items.add(new CreateRelationItem(it.optString("type"), it.optString("name"),
                         it.optString("sourceId"), it.optString("targetId"), it.optString("folderId"),
                         readMap(it.optObject("properties")), it.optString("documentation")));
             }

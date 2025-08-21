@@ -34,8 +34,7 @@ public class RelationsCore {
 
     /** Create a relation (legacy single-item). */
     public java.util.Map<String, Object> createRelation(CreateRelationCmd cmd) {
-        var item = new CreateRelationItem(cmd.type, cmd.name, cmd.sourceId, cmd.targetId, cmd.folderId, cmd.properties,
-                cmd.documentation);
+        var item = new CreateRelationItem(cmd.type, cmd.name, cmd.sourceId, cmd.targetId, cmd.folderId, null, null);
         return createRelation(item);
     }
 
@@ -83,7 +82,7 @@ public class RelationsCore {
 
     /** Update relation (legacy single-item). */
     public java.util.Map<String, Object> updateRelation(UpdateRelationCmd cmd) {
-        var item = new UpdateRelationItem(cmd.id, cmd.name, cmd.type, cmd.properties, cmd.documentation);
+        var item = new UpdateRelationItem(cmd.id, cmd.name, null, null, null);
         return updateRelation(item);
     }
 

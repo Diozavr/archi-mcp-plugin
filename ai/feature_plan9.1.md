@@ -166,8 +166,8 @@
 - 2) JsonReader: Статус [done] — Сделано: добавлены методы массивов и тесты — Осталось: —
 - 3) DTO: Статус [done] — Сделано: добавлены пакетные *Item/*Cmd, core и handlers переведены на новые команды — Осталось: —
 - 4) Core: Статус [done] — Сделано: реализованы пакетные методы в ElementsCore/RelationsCore/ViewsCore и добавлены юнит-тесты — Осталось: —
-  - 5) Handlers: Статус [partial] — Сделано: элементы, связи и объекты вида обрабатывают массивы — Осталось: ручная проверка через curl (curl http://127.0.0.1:8765/status → connection refused).
-  - 6) Tests/smoke: Статус [partial] — Сделано: добавлены юнит‑тесты для batch core и обновлён smoke‑скрипт — Осталось: `mvn test` (PluginResolutionException: Network is unreachable) и `test_smoke.sh` (Server not reachable).
+  - 5) Handlers: Статус [partial] — Сделано: элементы, связи и объекты вида обрабатывают массивы; поправлен конструктор `CreateRelationItem` — Осталось: ручная проверка через curl (curl http://127.0.0.1:8765/status → connection refused).
+  - 6) Tests/smoke: Статус [partial] — Сделано: добавлены юнит‑тесты для batch core, обновлён smoke‑скрипт и исправлены проверки `AddElementToViewItem` — Осталось: `mvn test` (PluginResolutionException: Network is unreachable) и `test_smoke.sh` (Server not reachable).
   - 7) MCP server.py: Статус [todo] — Сделано: — — Осталось: синхронизировать описания параметров (файл `archi-mcp-server/server.py` не найден).
 
 
