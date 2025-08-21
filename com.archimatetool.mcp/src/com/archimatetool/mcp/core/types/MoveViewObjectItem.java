@@ -1,8 +1,7 @@
 package com.archimatetool.mcp.core.types;
 
-/** Command to move a view object to another container. */
-public class MoveViewObjectCmd {
-    public final String viewId;
+/** Item describing view object move. */
+public class MoveViewObjectItem {
     public final String objectId;
     public final String parentObjectId;
     public final Integer x;
@@ -11,10 +10,9 @@ public class MoveViewObjectCmd {
     public final Integer h;
     public final Boolean keepExistingConnection;
 
-    public MoveViewObjectCmd(String viewId, String objectId, String parentObjectId,
-                             Integer x, Integer y, Integer w, Integer h,
-                             Boolean keepExistingConnection) {
-        this.viewId = viewId;
+    public MoveViewObjectItem(String objectId, String parentObjectId,
+                              Integer x, Integer y, Integer w, Integer h,
+                              Boolean keepExistingConnection) {
         this.objectId = objectId;
         this.parentObjectId = parentObjectId;
         this.x = x;

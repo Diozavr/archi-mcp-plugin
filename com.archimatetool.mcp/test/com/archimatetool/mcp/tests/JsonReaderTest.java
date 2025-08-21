@@ -65,6 +65,24 @@ public class JsonReaderTest {
         assertEquals("def", jr.optString("missingStr", "def"));
         assertEquals(7, jr.optIntWithin("missingObj", "x", 7));
     }
+
+    @Test
+    public void testArrayRootAndAt() {
+        JsonReader jr = JsonReader.fromString("[{\"x\":1},{\"x\":2}]");
+        assertTrue(jr.isArrayRoot());
+        assertEquals(2, jr.arraySize());
+        assertEquals(Integer.valueOf(1), jr.at(0).optInt("x"));
+    }
+
+    @Test
+    public void testOptArray() {
+        JsonReader jr = JsonReader.fromString("{\"items\":[{\"x\":1},{\"x\":2}]}");
+        assertFalse(jr.isArrayRoot());
+        assertEquals(0, jr.arraySize());
+        java.util.List<JsonReader> arr = jr.optArray("items");
+        assertEquals(2, arr.size());
+        assertEquals(Integer.valueOf(2), arr.get(1).optInt("x"));
+    }
 }
 
 

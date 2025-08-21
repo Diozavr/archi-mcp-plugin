@@ -76,12 +76,15 @@ public class ToolRegistry {
                 new ToolParam("folder_id", "string", false, "Target folder id", null)
             ),
             params -> {
-                CreateElementCmd cmd = new CreateElementCmd(
+                CreateElementItem item = new CreateElementItem(
+                    null,
                     (String) params.get("type"),
                     (String) params.get("name"),
-                    (String) params.get("folder_id")
+                    (String) params.get("folder_id"),
+                    null,
+                    null
                 );
-                return elementsCore.createElement(cmd);
+                return elementsCore.createElements(new CreateElementsCmd(List.of(item))).get(0);
             }
         ));
         // add_element_to_view
@@ -100,13 +103,17 @@ public class ToolRegistry {
                 Integer y = b != null && b.get("y") instanceof Number ? ((Number) b.get("y")).intValue() : null;
                 Integer w = b != null && b.get("w") instanceof Number ? ((Number) b.get("w")).intValue() : null;
                 Integer h = b != null && b.get("h") instanceof Number ? ((Number) b.get("h")).intValue() : null;
-                AddElementToViewCmd cmd = new AddElementToViewCmd(
-                    (String) params.get("view_id"),
+                AddElementToViewItem item = new AddElementToViewItem(
                     (String) params.get("element_id"),
                     (String) params.get("parent_object_id"),
-                    x, y, w, h
+                    x, y, w, h,
+                    null
                 );
-                return viewsCore.addElement(cmd);
+                AddElementsToViewCmd cmd = new AddElementsToViewCmd(
+                    (String) params.get("view_id"),
+                    List.of(item)
+                );
+                return viewsCore.addElements(cmd).get(0);
             }
         ));
         // save_model
