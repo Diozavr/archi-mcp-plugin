@@ -3,7 +3,10 @@ package com.archimatetool.mcp.http.handlers;
 import java.io.IOException;
 
 import com.archimatetool.mcp.core.errors.CoreException;
-import com.archimatetool.mcp.core.types.AddElementToViewCmd;
+import java.util.List;
+
+import com.archimatetool.mcp.core.types.AddElementToViewItem;
+import com.archimatetool.mcp.core.types.AddElementsToViewCmd;
 import com.archimatetool.mcp.core.views.ViewsCore;
 import com.archimatetool.mcp.http.ResponseUtil;
 import com.archimatetool.mcp.json.JsonReader;
@@ -23,9 +26,10 @@ public class LegacyViewAddElementHttpHandler implements HttpHandler {
         Integer y = jr.optInt("y");
         Integer w = jr.optInt("w");
         Integer h = jr.optInt("h");
-        AddElementToViewCmd cmd = new AddElementToViewCmd(viewId, elementId, null, x, y, w, h);
+        AddElementToViewItem item = new AddElementToViewItem(elementId, null, x, y, w, h, null);
+        AddElementsToViewCmd cmd = new AddElementsToViewCmd(viewId, List.of(item));
         try {
-            var res = core.addElement(cmd);
+            var res = core.addElements(cmd).get(0);
             ResponseUtil.ok(exchange, res);
         } catch (CoreException ex) {
             ResponseUtil.handleCoreException(exchange, ex);

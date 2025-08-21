@@ -4,6 +4,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import com.archimatetool.mcp.server.JacksonJson;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -56,6 +59,31 @@ public final class JsonReader {
         } catch (IOException ex) {
             return empty();
         }
+    }
+
+    public boolean isArrayRoot() {
+        return root.isArray();
+    }
+
+    public int arraySize() {
+        return root.isArray() ? root.size() : 0;
+    }
+
+    public JsonReader at(int idx) {
+        if (!root.isArray() || idx < 0 || idx >= root.size()) return empty();
+        JsonNode v = root.get(idx);
+        return v != null ? new JsonReader(v) : empty();
+    }
+
+    public List<JsonReader> optArray(String key) {
+        if (key == null) return Collections.emptyList();
+        JsonNode v = root.get(key);
+        if (v == null || !v.isArray()) return Collections.emptyList();
+        List<JsonReader> list = new ArrayList<>(v.size());
+        for (JsonNode n : v) {
+            list.add(new JsonReader(n));
+        }
+        return list;
     }
 
     public String optString(String key) {
