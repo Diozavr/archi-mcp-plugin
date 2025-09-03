@@ -206,6 +206,8 @@ def main() -> int:
     tmp_eid = (tmp_el or {}).get("id") if isinstance(tmp_el, dict) else None
     if tmp_eid:
         run_step("POST /views/{id}/add-element (temp)", lambda: http_request("POST", base, f"/views/{tmp_vid}/add-element", json_body={"elementId": tmp_eid, "bounds": {"x": 30, "y": 30, "w": 60, "h": 40}}))
+        # Test style support
+        run_step("POST /views/{id}/add-element (temp with style)", lambda: http_request("POST", base, f"/views/{tmp_vid}/add-element", json_body={"elementId": tmp_eid, "bounds": {"x": 100, "y": 100, "w": 80, "h": 60}, "style": {"fillColor": "#4CAF50", "fontColor": "#FFFFFF", "fontSize": "14"}}))
         # Get content to find objectId, then delete the object from the temp view
         _, tv_content = run_step("GET /views/{id}/content (temp)", lambda: http_request("GET", base, f"/views/{tmp_vid}/content"))
         if isinstance(tv_content, dict):
@@ -225,6 +227,11 @@ def main() -> int:
     del_elems_body = [{"id": eid} for eid in eids]
     run_step("DELETE /elements", lambda: http_request("DELETE", base, "/elements", json_body=del_elems_body))
 
+    # Test script execution
+    print("\n[SMOKE] Test script execution")
+    run_step("GET /script/engines", lambda: http_request("GET", base, "/script/engines"))
+    run_step("POST /script/run (simple test)", lambda: http_request("POST", base, "/script/run", json_body={"code": "console.log('Smoke test script executed successfully');", "engine": "ajs"}))
+    
     run_step("POST /model/save", lambda: http_request("POST", base, "/model/save", json_body={}))
     print("\n[SMOKE] Flow completed.")
     return 0

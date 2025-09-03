@@ -48,6 +48,9 @@
 - `GET /status` → `{"ok":true,...}`
 - `POST /elements` с типом в kebab-case создаёт элемент.
 - `POST /model/save` → `{"saved":true,...}`
+- `GET /script/engines` → `{installed:false, engines:[]}` (при отсутствии scripting-плагина).
+- `POST /script/run` без scripting-плагина возвращает 501.
+- `POST /script/run` отклоняет неизвестный `engine`, некорректный `timeoutMs` и усечёт `stdout/stderr` после ~10k символов.
 - Расширенный smoke‑тест: `com.archimatetool.mcp/test/test_smoke.sh` покрывает маршруты
   `/openapi.json`, `/types`, `/folders`, создание видов/элементов/отношений,
   операции над объектами вида, `/views/{id}/image`, `/search`, сценарии ошибок и уборку.

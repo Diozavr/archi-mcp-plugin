@@ -12,7 +12,8 @@ Require-Bundle: org.eclipse.core.runtime,
  org.eclipse.ui,
  com.archimatetool.editor;bundle-version="[5.0.0,6.0.0)",
  com.archimatetool.model;bundle-version="[5.0.0,6.0.0)",
- com.archimatetool.export.svg
+ com.archimatetool.export.svg,
+ com.archimatetool.script;bundle-version="[1.0.0,2.0.0)";resolution:=optional
 Bundle-ClassPath: .,
  lib/jackson-annotations-2.17.1.jar,
  lib/jackson-core-2.17.1.jar,

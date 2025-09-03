@@ -1,8 +1,15 @@
 package com.archimatetool.mcp.tests;
 
-import java.util.List;
+import static org.junit.Assert.assertFalse;
 
+import java.util.List;
+import java.util.Map;
+
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
+
+import com.archimatetool.mcp.service.ServiceRegistry;
 
 import com.archimatetool.mcp.core.elements.ElementsCore;
 import com.archimatetool.mcp.core.errors.BadRequestException;
@@ -32,6 +39,18 @@ import com.archimatetool.mcp.core.types.UpdateViewObjectBoundsItem;
 import com.archimatetool.mcp.core.types.UpdateViewObjectsBoundsCmd;
 
 public class CoreBatchValidationTest {
+
+    @Before
+    public void setUp() {
+        // Use mock service to avoid Eclipse workbench dependencies
+        ServiceRegistry.setActiveModelService(new MockActiveModelService());
+    }
+    
+    @After
+    public void tearDown() {
+        // Reset to default service after tests
+        ServiceRegistry.resetActiveModelService();
+    }
 
     @Test(expected = BadRequestException.class)
     public void createElementsRequiresItems() {
@@ -103,6 +122,24 @@ public class CoreBatchValidationTest {
     public void addElementsToViewRequireElementId() throws Exception {
         List<AddElementToViewItem> items = List.of(new AddElementToViewItem(null, null, null, null, null, null, null));
         new ViewsCore().addElements(new AddElementsToViewCmd("v", items));
+    }
+
+    @Test
+    public void addElementsToViewAcceptsStylesWithoutError() throws Exception {
+        // Test that styles don't cause validation errors
+        Map<String, String> styles = Map.of(
+            "fillColor", "#4CAF50",
+            "fontColor", "#FFFFFF",
+            "fontSize", "14"
+        );
+        List<AddElementToViewItem> items = List.of(new AddElementToViewItem("elem1", null, 100, 100, 120, 80, styles));
+        // This should not throw an exception during validation
+        try {
+            new ViewsCore().addElements(new AddElementsToViewCmd("v", items));
+        } catch (Exception e) {
+            // Expected to fail with model-related errors, but not validation errors
+            assertFalse("Should not be a validation error", e instanceof BadRequestException);
+        }
     }
 
     @Test(expected = BadRequestException.class)

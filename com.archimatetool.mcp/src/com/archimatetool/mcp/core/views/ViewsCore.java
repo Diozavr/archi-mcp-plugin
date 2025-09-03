@@ -133,6 +133,54 @@ public class ViewsCore {
         } else {
             dmo = ServiceRegistry.views().addElementToView(view, el, x, y, w, h);
         }
+        
+        // Apply styles if provided
+        if (item.style != null && !item.style.isEmpty()) {
+            for (Map.Entry<String, String> styleEntry : item.style.entrySet()) {
+                String key = styleEntry.getKey();
+                String value = styleEntry.getValue();
+                try {
+                    if ("fillColor".equals(key)) {
+                        dmo.setFillColor(value);
+                    } else if ("fontColor".equals(key)) {
+                        dmo.setFontColor(value);
+                    } else if ("lineColor".equals(key)) {
+                        dmo.setLineColor(value);
+                    } else if ("fontName".equals(key)) {
+                        dmo.setFont(value);
+                    } else if ("fontSize".equals(key)) {
+                        // For fontSize, we need to get the current font and modify it
+                        try {
+                            int fontSize = Integer.parseInt(value);
+                            String currentFont = dmo.getFont();
+                            if (currentFont == null || currentFont.isEmpty()) {
+                                // Use system default font with new size
+                                dmo.setFont("1|Arial|" + fontSize + "|0|WINDOWS|1|-13|0|0|0|400|0|0|0|1|0|0|0|0|Arial");
+                            } else {
+                                // Parse existing font string and update size
+                                String[] fontParts = currentFont.split("\\|");
+                                if (fontParts.length > 2) {
+                                    fontParts[2] = String.valueOf(fontSize);
+                                    dmo.setFont(String.join("|", fontParts));
+                                }
+                            }
+                        } catch (NumberFormatException e) {
+                            // Ignore invalid font size
+                        }
+                    } else if ("opacity".equals(key) || "alpha".equals(key)) {
+                        try {
+                            int opacity = Integer.parseInt(value);
+                            dmo.setAlpha(opacity);
+                        } catch (NumberFormatException e) {
+                            // Ignore invalid opacity
+                        }
+                    }
+                } catch (Exception e) {
+                    // Ignore any style application errors to prevent breaking the element creation
+                }
+            }
+        }
+        
         return Map.of("objectId", dmo.getId());
     }
 
