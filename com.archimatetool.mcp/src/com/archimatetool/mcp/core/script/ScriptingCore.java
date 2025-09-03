@@ -7,7 +7,9 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -39,16 +41,37 @@ public class ScriptingCore {
             return List.of();
         }
         List<String> engines = new ArrayList<>();
-        if (Platform.getBundle("com.archimatetool.script.ajs") != null) {
+        
+        // The main script plugin supports JavaScript/AJS by default
+        if (Platform.getBundle("com.archimatetool.script") != null) {
             engines.add("ajs");
         }
+        
+        // Check for additional script engines based on actual bundle names
         if (Platform.getBundle("com.archimatetool.script.groovy") != null) {
             engines.add("groovy");
         }
         if (Platform.getBundle("com.archimatetool.script.jruby") != null) {
             engines.add("jruby");
         }
+        
         return engines;
+    }
+
+    /** Get comprehensive documentation for autonomous agents. */
+    public Map<String, Object> getAgentDocumentation() {
+        Map<String, Object> documentation = new HashMap<>();
+        
+        // jArchi scripting guide
+        documentation.put("jArchiGuide", AgentDocumentation.JARCHI_GUIDE);
+        
+        // Common patterns with code examples
+        documentation.put("commonPatterns", AgentDocumentation.COMMON_PATTERNS);
+        
+        // ArchiMate modeling context
+        documentation.put("archiMateContext", AgentDocumentation.ARCHIMATE_CONTEXT);
+        
+        return documentation;
     }
 
     /**
@@ -86,7 +109,12 @@ public class ScriptingCore {
                     try {
                         runnerClass.getMethod("run").invoke(runner);
                     } catch (Exception e) {
-                        throw new RuntimeException(e);
+                        System.err.println("Script execution error: " + e.getMessage());
+                        if (e.getCause() != null) {
+                            System.err.println("Caused by: " + e.getCause().getMessage());
+                        }
+                        e.printStackTrace();
+                        throw new RuntimeException("Script execution failed: " + e.getMessage(), e);
                     }
                 });
 
@@ -128,7 +156,11 @@ public class ScriptingCore {
             if (cause instanceof CoreException ce) {
                 throw ce;
             }
-            throw new UnprocessableException("script execution failed", cause);
+            String errorMessage = "script execution failed";
+            if (cause != null && cause.getMessage() != null) {
+                errorMessage += ": " + cause.getMessage();
+            }
+            throw new UnprocessableException(errorMessage, cause);
         } finally {
             exec.shutdownNow();
         }

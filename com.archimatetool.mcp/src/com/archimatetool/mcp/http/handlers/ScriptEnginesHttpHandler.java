@@ -26,6 +26,12 @@ public class ScriptEnginesHttpHandler implements HttpHandler {
         Map<String, Object> resp = new HashMap<>();
         resp.put("installed", core.isPluginInstalled());
         resp.put("engines", core.listEngines());
+        
+        // Include comprehensive documentation for autonomous agents
+        if (core.isPluginInstalled()) {
+            resp.put("documentation", core.getAgentDocumentation());
+        }
+        
         ResponseUtil.ok(exchange, resp);
     }
 }

@@ -105,4 +105,17 @@ public class ScriptRunHttpHandlerTest {
         new ScriptRunHttpHandler(core).handle(ex);
         assertEquals(409, ex.getResponseCode());
     }
+
+    @Test
+    public void testScriptExecutionErrorIncludesDetailedMessage() throws Exception {
+        FakeHttpExchange ex = new FakeHttpExchange("POST", "/script/run", "{\"code\":\"invalid code\",\"engine\":\"ajs\"}");
+        ScriptingCore core = new StubCore(true, null, java.util.List.of("ajs")) {
+            @Override public ScriptResult run(ScriptRequest req) {
+                throw new com.archimatetool.mcp.core.errors.UnprocessableException("script execution failed: ReferenceError: undefined variable");
+            }
+        };
+        new ScriptRunHttpHandler(core).handle(ex);
+        assertEquals(422, ex.getResponseCode());
+        assertTrue("Should contain detailed error message", ex.getResponseString().contains("ReferenceError"));
+    }
 }

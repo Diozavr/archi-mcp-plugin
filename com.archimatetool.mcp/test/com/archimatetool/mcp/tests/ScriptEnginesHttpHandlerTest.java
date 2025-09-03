@@ -50,4 +50,17 @@ public class ScriptEnginesHttpHandlerTest {
         new ScriptEnginesHttpHandler(new StubCore(false, List.of())).handle(ex);
         assertEquals(405, ex.getResponseCode());
     }
+
+    @Test
+    public void testMultipleEnginesSupported() throws Exception {
+        FakeHttpExchange ex = new FakeHttpExchange("GET", "/script/engines", null);
+        new ScriptEnginesHttpHandler(new StubCore(true, List.of("ajs", "groovy", "jruby"))).handle(ex);
+        assertEquals(200, ex.getResponseCode());
+        JsonNode root = JacksonJson.mapper().readTree(ex.getResponseString());
+        assertTrue(root.get("installed").asBoolean());
+        assertEquals(3, root.get("engines").size());
+        assertEquals("ajs", root.get("engines").get(0).asText());
+        assertEquals("groovy", root.get("engines").get(1).asText());
+        assertEquals("jruby", root.get("engines").get(2).asText());
+    }
 }

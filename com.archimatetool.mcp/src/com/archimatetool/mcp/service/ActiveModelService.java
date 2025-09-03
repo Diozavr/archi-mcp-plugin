@@ -13,8 +13,9 @@ import com.archimatetool.editor.model.IEditorModelManager;
 import com.archimatetool.model.IArchimateModel;
 import com.archimatetool.model.util.ArchimateModelUtils;
 
-public class ActiveModelService {
+public class ActiveModelService implements IActiveModelService {
 
+    @Override
     public IArchimateModel getActiveModel() {
         final IArchimateModel[] active = new IArchimateModel[1];
         if (PlatformUI.isWorkbenchRunning()) {
@@ -41,10 +42,12 @@ public class ActiveModelService {
         return models.isEmpty() ? null : models.get(0);
     }
 
+    @Override
     public Object findById(IArchimateModel model, String id) {
         return ArchimateModelUtils.getObjectByID(model, id);
     }
 
+    @Override
     public boolean saveActiveModel() {
         IArchimateModel model = getActiveModel();
         if (model == null || model.getFile() == null) return false;

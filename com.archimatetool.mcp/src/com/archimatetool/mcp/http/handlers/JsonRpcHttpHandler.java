@@ -101,7 +101,15 @@ public class JsonRpcHttpHandler implements HttpHandler {
             case "notifications/initialized":
                 return isNotification ? null : success(idNode, Collections.emptyMap());
             case "tools/list": {
-                Map<String, Object> payload = Map.of("tools", ToolRegistry.describeAll());
+                Map<String, Object> payload = new HashMap<>();
+                payload.put("tools", ToolRegistry.describeAll());
+                payload.put("usage", String.join("\n",
+                    "JSON-RPC 2.0 endpoint: POST /mcp",
+                    "Call tools via method 'tools/call' and include params in 'arguments' (or legacy 'args').",
+                    "Request example:",
+                    "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"list_views\",\"arguments\":{}}}",
+                    "Do not include a 'result' field in requests (it appears only in responses).",
+                    "Parameters use strict types and snake_case names shown in inputSchema."));
                 return isNotification ? null : success(idNode, payload);
             }
             case "tools/call": {

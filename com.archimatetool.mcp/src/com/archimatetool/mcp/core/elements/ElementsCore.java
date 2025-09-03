@@ -8,11 +8,14 @@ import java.util.Map;
 import com.archimatetool.mcp.core.errors.BadRequestException;
 import com.archimatetool.mcp.core.errors.ConflictException;
 import com.archimatetool.mcp.core.errors.NotFoundException;
-import com.archimatetool.mcp.core.types.CreateElementCmd;
-import com.archimatetool.mcp.core.types.DeleteElementCmd;
+import com.archimatetool.mcp.core.types.CreateElementItem;
+import com.archimatetool.mcp.core.types.CreateElementsCmd;
+import com.archimatetool.mcp.core.types.DeleteElementItem;
+import com.archimatetool.mcp.core.types.DeleteElementsCmd;
 import com.archimatetool.mcp.core.types.GetElementQuery;
 import com.archimatetool.mcp.core.types.ListElementRelationsQuery;
-import com.archimatetool.mcp.core.types.UpdateElementCmd;
+import com.archimatetool.mcp.core.types.UpdateElementItem;
+import com.archimatetool.mcp.core.types.UpdateElementsCmd;
 import com.archimatetool.mcp.core.validation.Validators;
 import com.archimatetool.mcp.server.ModelApi;
 import com.archimatetool.mcp.service.ServiceRegistry;
@@ -33,14 +36,24 @@ public class ElementsCore {
         return model;
     }
 
-    /** Create a new element in the active model. */
-    public Map<String, Object> createElement(CreateElementCmd cmd) {
-        Validators.requireNonEmpty(cmd.type, "type");
-        Validators.requireNonEmpty(cmd.name, "name");
+    /** Create multiple elements in the active model. */
+    public List<Map<String, Object>> createElements(CreateElementsCmd cmd) {
+        Validators.requireNonNull(cmd.items, "items");
+        Validators.require(!cmd.items.isEmpty(), "items required");
+        List<Map<String, Object>> res = new ArrayList<>();
+        for (CreateElementItem item : cmd.items) {
+            res.add(createElement(item));
+        }
+        return res;
+    }
+
+    private Map<String, Object> createElement(CreateElementItem item) {
+        Validators.requireNonEmpty(item.type, "type");
+        Validators.requireNonEmpty(item.name, "name");
         var model = requireModel();
-        String camelType = StringCaseUtil.toCamelCase(cmd.type);
+        String camelType = StringCaseUtil.toCamelCase(item.type);
         try {
-            var el = ServiceRegistry.elements().createElement(model, camelType, cmd.name, cmd.folderId);
+            var el = ServiceRegistry.elements().createElement(model, camelType, item.name, item.folderId);
             return ModelApi.elementToDto(el);
         } catch (IllegalArgumentException ex) {
             throw new BadRequestException(ex.getMessage());
@@ -64,27 +77,49 @@ public class ElementsCore {
         return dto;
     }
 
-    /** Update element name. */
-    public Map<String, Object> updateElement(UpdateElementCmd cmd) {
-        Validators.requireNonEmpty(cmd.id, "id");
+    /** Update multiple elements. */
+    public List<Map<String, Object>> updateElements(UpdateElementsCmd cmd) {
+        Validators.requireNonNull(cmd.items, "items");
+        Validators.require(!cmd.items.isEmpty(), "items required");
+        List<Map<String, Object>> res = new ArrayList<>();
+        for (UpdateElementItem item : cmd.items) {
+            res.add(updateElement(item));
+        }
+        return res;
+    }
+
+    private Map<String, Object> updateElement(UpdateElementItem item) {
+        Validators.requireNonEmpty(item.id, "id");
         var model = requireModel();
-        Object o = ServiceRegistry.activeModel().findById(model, cmd.id);
+        Object o = ServiceRegistry.activeModel().findById(model, item.id);
         if (!(o instanceof IArchimateElement)) {
             throw new NotFoundException("not found");
         }
         IArchimateElement el = (IArchimateElement) o;
-        if (cmd.name != null) {
-            final String n = cmd.name;
+        if (item.name != null) {
+            final String n = item.name;
             org.eclipse.swt.widgets.Display.getDefault().syncExec(() -> el.setName(n));
         }
         return ModelApi.elementToDto(el);
     }
 
-    /** Delete element by id. */
-    public void deleteElement(DeleteElementCmd cmd) {
-        Validators.requireNonEmpty(cmd.id, "id");
+    /** Delete multiple elements. */
+    public Map<String, Object> deleteElements(DeleteElementsCmd cmd) {
+        Validators.requireNonNull(cmd.items, "items");
+        Validators.require(!cmd.items.isEmpty(), "items required");
+        for (DeleteElementItem item : cmd.items) {
+            deleteElement(item);
+        }
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("total", cmd.items.size());
+        resp.put("deleted", cmd.items.size());
+        return resp;
+    }
+
+    private void deleteElement(DeleteElementItem item) {
+        Validators.requireNonEmpty(item.id, "id");
         var model = requireModel();
-        Object o = ServiceRegistry.activeModel().findById(model, cmd.id);
+        Object o = ServiceRegistry.activeModel().findById(model, item.id);
         if (!(o instanceof IArchimateElement)) {
             throw new NotFoundException("not found");
         }

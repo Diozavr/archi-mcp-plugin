@@ -1,8 +1,8 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Archi MCP API",
-    "version": "0.1.0"
+    "title": "Archi MCP API (v9.1 batch writes)",
+    "version": "0.1.0-v9.1"
   },
   "servers": [
     { "url": "http://127.0.0.1:8765" }
@@ -25,6 +25,7 @@
     "/status": {
       "get": {
         "summary": "Service status",
+        "operationId": "getStatus",
         "tags": ["System"],
         "responses": {
           "200": {
@@ -49,16 +50,16 @@
     "/openapi.json": {
       "get": {
         "summary": "OpenAPI spec",
+        "operationId": "getOpenapiSpec",
         "tags": ["System"],
-        "responses": {
-          "200": { "description": "Spec" }
-        }
+        "responses": { "200": { "description": "Spec" } }
       }
     },
 
     "/types": {
       "get": {
         "summary": "List supported element/relation/view types",
+        "operationId": "listTypes",
         "tags": ["Types"],
         "responses": {
           "200": {
@@ -83,6 +84,7 @@
     "/folders": {
       "get": {
         "summary": "Get model folder tree",
+        "operationId": "getFolders",
         "tags": ["Folders"],
         "parameters": [
           { "name": "modelId", "in": "query", "schema": { "type": "string" }, "required": false }
@@ -92,10 +94,7 @@
             "description": "Folder tree",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": { "$ref": "#/components/schemas/Folder" }
-                }
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Folder" } }
               }
             }
           }
@@ -105,6 +104,7 @@
     "/folder/ensure": {
       "post": {
         "summary": "Ensure folder exists by path",
+        "operationId": "ensureFolder",
         "tags": ["Folders"],
         "requestBody": {
           "required": true,
@@ -133,6 +133,7 @@
     "/search": {
       "get": {
         "summary": "Search elements, relations and views (recursive)",
+        "operationId": "search",
         "tags": ["Search"],
         "description": "Substring search over available fields. Matching is non-strict (OR): name is always searched; documentation is searched when includeDocs=true; properties (key and value) are searched when includeProps=true. When property=key=value filters are provided, they are applied as strict AND filters in addition to text matching.",
         "parameters": [
@@ -150,201 +151,203 @@
           { "name": "log", "in": "query", "schema": { "type": "string", "enum": ["stdout", "script"], "default": "stdout" }, "required": false, "description": "Optional log target for debug traces. If unavailable, falls back to stdout." }
         ],
         "responses": {
-          "200": {
-            "description": "Search results",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/SearchResponse" }
-              }
-            }
-          }
+          "200": { "description": "Search results", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SearchResponse" } } } }
         }
       }
     },
 
     "/elements": {
-      "post": {
-        "summary": "Create element",
-        "tags": ["Elements"],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "modelId": { "type": "string" },
-                  "type": { "type": "string" },
-                  "name": { "type": "string" },
-                  "folderId": { "type": "string" },
-                  "properties": { "type": "object", "additionalProperties": { "type": "string" } },
-                  "documentation": { "type": "string" }
-                },
-                "required": ["type", "name"]
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Element" } } } }
-        }
-      }
-    },
-    "/elements/{id}": {
       "get": {
-        "summary": "Get element",
+        "summary": "Get elements (batch by ids)",
+        "operationId": "getElements",
         "tags": ["Elements"],
-        "description": "Optionally enrich with related relations using 'include=relations' and inline endpoints via 'includeElements=true'.",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "ids", "in": "query", "required": true, "style": "form", "explode": true, "schema": { "type": "array", "maxItems": 50, "items": { "type": "string" } } },
           { "name": "include", "in": "query", "required": false, "schema": { "type": "string", "example": "relations" } },
           { "name": "includeElements", "in": "query", "required": false, "schema": { "type": "boolean", "default": false } }
         ],
         "responses": {
           "200": {
-            "description": "Element (optionally enriched)",
+            "description": "Elements",
             "content": {
               "application/json": {
-                "schema": {
-                  "oneOf": [
-                    { "$ref": "#/components/schemas/Element" },
-                    { "$ref": "#/components/schemas/ElementWithRelations" }
-                  ]
+                "schema": { "type": "array", "items": { "oneOf": [ { "$ref": "#/components/schemas/Element" }, { "$ref": "#/components/schemas/ElementWithRelations" } ] } }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create elements (batch)",
+        "operationId": "createElements",
+        "tags": ["Elements"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array", "maxItems": 50,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "modelId": { "type": "string" },
+                    "type": { "type": "string" },
+                    "name": { "type": "string" },
+                    "folderId": { "type": "string" },
+                    "properties": { "type": "object", "additionalProperties": { "type": "string" } },
+                    "documentation": { "type": "string" }
+                  },
+                  "required": ["type", "name"]
                 }
               }
             }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Created",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Element" } } } }
           }
         }
       },
       "patch": {
-        "summary": "Update element",
+        "summary": "Update elements (batch)",
+        "operationId": "updateElements",
         "tags": ["Elements"],
-        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ElementPatch" } } } },
-        "responses": { "200": { "description": "Updated", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Element" } } } } }
-      },
-      "delete": {
-        "summary": "Delete element",
-        "tags": ["Elements"],
-        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
-        "responses": { "204": { "description": "Deleted" } }
-      }
-    },
-
-    "/elements/{id}/relations": {
-      "get": {
-        "summary": "List relations attached to an element",
-        "tags": ["Elements"],
-        "description": "Returns relations where the given element is source and/or target. Use 'direction' to filter, and 'includeElements' to inline endpoint element DTOs.",
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
-          { "name": "direction", "in": "query", "required": false, "schema": { "type": "string", "enum": ["in","out","both"], "default": "both" } },
-          { "name": "includeElements", "in": "query", "required": false, "schema": { "type": "boolean", "default": false } }
-        ],
-        "responses": {
-          "200": {
-            "description": "Relations",
-            "content": {
-              "application/json": {
-                "schema": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array", "maxItems": 50,
+                "items": {
                   "type": "object",
                   "properties": {
-                    "total": { "type": "integer" },
-                    "items": {
-                      "type": "array",
-                      "items": {
-                        "oneOf": [
-                          { "$ref": "#/components/schemas/Relation" },
-                          { "$ref": "#/components/schemas/ElementRelationWithEndpoints" }
-                        ]
-                      }
-                    }
+                    "id": { "type": "string" },
+                    "name": { "type": "string" },
+                    "type": { "type": "string" },
+                    "folderId": { "type": "string" },
+                    "properties": { "type": "object", "additionalProperties": { "type": "string" } },
+                    "documentation": { "type": "string" }
                   },
-                  "required": ["total","items"]
+                  "required": ["id"]
                 }
               }
             }
           }
-        }
+        },
+        "responses": { "200": { "description": "Updated", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Element" } } } } } }
+      },
+      "delete": {
+        "summary": "Delete elements (batch)",
+        "operationId": "deleteElements",
+        "tags": ["Elements"],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "array", "maxItems": 50, "items": { "type": "object", "properties": { "id": { "type": "string" } }, "required": ["id"] } } } }
+        },
+        "responses": { "200": { "description": "Deleted", "content": { "application/json": { "schema": { "type": "object", "properties": { "total": { "type": "integer" }, "deleted": { "type": "integer" } }, "required": ["total","deleted"] } } } } }
       }
     },
+    
 
     "/relations": {
+      "get": {
+        "summary": "Get relations (batch by ids)",
+        "operationId": "getRelations",
+        "tags": ["Relations"],
+        "parameters": [ { "name": "ids", "in": "query", "required": true, "style": "form", "explode": true, "schema": { "type": "array", "maxItems": 50, "items": { "type": "string" } } } ],
+        "responses": { "200": { "description": "Relations", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Relation" } } } } } }
+      },
       "post": {
-        "summary": "Create relation",
+        "summary": "Create relations (batch)",
+        "operationId": "createRelations",
         "tags": ["Relations"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "modelId": { "type": "string" },
-                  "type": { "type": "string" },
-                  "sourceId": { "type": "string" },
-                  "targetId": { "type": "string" },
-                  "name": { "type": "string" },
-                  "properties": { "type": "object", "additionalProperties": { "type": "string" } },
-                  "documentation": { "type": "string" }
-                },
-                "required": ["type", "sourceId", "targetId"]
+                "type": "array", "maxItems": 50,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "modelId": { "type": "string" },
+                    "type": { "type": "string" },
+                    "name": { "type": "string" },
+                    "sourceId": { "type": "string" },
+                    "targetId": { "type": "string" },
+                    "folderId": { "type": "string" },
+                    "properties": { "type": "object", "additionalProperties": { "type": "string" } },
+                    "documentation": { "type": "string" }
+                  },
+                  "required": ["type", "sourceId", "targetId"]
+                }
               }
             }
           }
         },
         "responses": {
-          "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Relation" } } } }
+          "200": {
+            "description": "Created",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Relation" } } } }
+          }
         }
-      }
-    },
-    "/relations/{id}": {
-      "get": {
-        "summary": "Get relation",
-        "tags": ["Relations"],
-        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
-        "responses": { "200": { "description": "Relation", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Relation" } } } } }
       },
       "patch": {
-        "summary": "Update relation",
+        "summary": "Update relations (batch)",
+        "operationId": "updateRelations",
         "tags": ["Relations"],
-        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RelationPatch" } } } },
-        "responses": { "200": { "description": "Updated", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Relation" } } } } }
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array", "maxItems": 50,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string" },
+                    "name": { "type": "string" },
+                    "type": { "type": "string" },
+                    "properties": { "type": "object", "additionalProperties": { "type": "string" } },
+                    "documentation": { "type": "string" }
+                  },
+                  "required": ["id"]
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Relation" } } } } } }
       },
       "delete": {
-        "summary": "Delete relation",
+        "summary": "Delete relations (batch)",
+        "operationId": "deleteRelations",
         "tags": ["Relations"],
-        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
-        "responses": { "204": { "description": "Deleted" } }
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "array", "maxItems": 50, "items": { "type": "object", "properties": { "id": { "type": "string" } }, "required": ["id"] } } } }
+        },
+        "responses": { "200": { "description": "Deleted", "content": { "application/json": { "schema": { "type": "object", "properties": { "total": { "type": "integer" }, "deleted": { "type": "integer" } }, "required": ["total","deleted"] } } } } }
       }
     },
 
     "/views": {
       "get": {
         "summary": "List views",
+        "operationId": "listViews",
         "tags": ["Views"],
         "parameters": [ { "name": "modelId", "in": "query", "required": false, "schema": { "type": "string" } } ],
         "responses": { "200": { "description": "Views", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/View" } } } } } }
       },
       "post": {
         "summary": "Create view",
+        "operationId": "createView",
         "tags": ["Views"],
         "requestBody": {
           "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "modelId": { "type": "string" },
-                  "type": { "type": "string" },
-                  "name": { "type": "string" }
-                },
-                "required": ["type", "name"]
-              }
-            }
-          }
+          "content": { "application/json": { "schema": { "type": "object", "properties": { "modelId": { "type": "string" }, "type": { "type": "string" }, "name": { "type": "string" } }, "required": ["type", "name"] } } }
         },
         "responses": { "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/View" } } } } }
       }
@@ -352,12 +355,14 @@
     "/views/{id}": {
       "get": {
         "summary": "Get view",
+        "operationId": "getView",
         "tags": ["Views"],
         "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
         "responses": { "200": { "description": "View", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/View" } } } } }
       },
       "delete": {
         "summary": "Delete view",
+        "operationId": "deleteView",
         "tags": ["Views"],
         "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
         "responses": { "204": { "description": "Deleted" } }
@@ -366,14 +371,20 @@
     "/views/{id}/content": {
       "get": {
         "summary": "Get view content (objects, connections, layout)",
+        "operationId": "getViewContent",
         "tags": ["Views"],
-        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }, { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 5000 }, "required": false }, { "name": "offset", "in": "query", "schema": { "type": "integer", "minimum": 0 }, "required": false } ],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 5000 }, "required": false },
+          { "name": "offset", "in": "query", "schema": { "type": "integer", "minimum": 0 }, "required": false }
+        ],
         "responses": { "200": { "description": "Content", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ViewContent" } } } } }
       }
     },
     "/views/{id}/image": {
       "get": {
         "summary": "Render view to image (PNG/SVG)",
+        "operationId": "renderViewImage",
         "tags": ["Views"],
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
@@ -384,13 +395,7 @@
           { "name": "margin", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 0, "default": 0 } }
         ],
         "responses": {
-          "200": {
-            "description": "Image",
-            "content": {
-              "image/png": { "schema": { "type": "string", "format": "binary" } },
-              "image/svg+xml": { "schema": { "type": "string" } }
-            }
-          },
+          "200": { "description": "Image", "content": { "image/png": { "schema": { "type": "string", "format": "binary" } }, "image/svg+xml": { "schema": { "type": "string" } } } },
           "400": { "description": "Bad Request" },
           "404": { "description": "Not Found" },
           "409": { "description": "Conflict (no active model)" }
@@ -399,16 +404,46 @@
     },
     "/views/{id}/add-element": {
       "post": {
-        "summary": "Add element to view",
+        "summary": "Add elements to view (batch)",
+        "operationId": "addElementsToView",
         "tags": ["Views"],
         "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "elementId": { "type": "string" }, "parentObjectId": { "type": "string", "description": "Optional parent diagram object container to place the element into." }, "bounds": { "$ref": "#/components/schemas/Bounds" }, "style": { "type": "object", "additionalProperties": { "type": "string" } } }, "required": ["elementId", "bounds"] } } } },
-        "responses": { "200": { "description": "Added", "content": { "application/json": { "schema": { "type": "object", "properties": { "objectId": { "type": "string" } }, "required": ["objectId"] } } } } }
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array", "maxItems": 50,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "elementId": { "type": "string" },
+                    "parentObjectId": { "type": "string", "description": "Optional parent diagram object container to place the element into." },
+                    "bounds": { "$ref": "#/components/schemas/Bounds" },
+                    "x": { "type": "integer" },
+                    "y": { "type": "integer" },
+                    "w": { "type": "integer" },
+                    "h": { "type": "integer" },
+                    "style": { "type": "object", "additionalProperties": { "type": "string" } }
+                  },
+                  "required": ["elementId"]
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Added",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "type": "object", "properties": { "objectId": { "type": "string" } }, "required": ["objectId"] } } } }
+          }
+        }
       }
     },
     "/views/{id}/add-relation": {
       "post": {
-        "summary": "Add relation to view",
+        "summary": "Add relations to view (batch)",
+        "operationId": "addRelationsToView",
         "tags": ["Views"],
         "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
         "requestBody": {
@@ -416,79 +451,121 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "relationId": { "type": "string", "description": "Existing model relation ID (IArchimateRelationship)." },
-                  "sourceObjectId": { "type": "string", "description": "Diagram object ID for the relation source endpoint (optional)." },
-                  "targetObjectId": { "type": "string", "description": "Diagram object ID for the relation target endpoint (optional)." },
-                  "policy": { "type": "string", "enum": ["auto", "fail"], "default": "auto", "description": "When objectId is not provided, 'auto' will pick the only occurrence per side if unambiguous; 'fail' will return an error." },
-                  "suppressWhenNested": { "type": "boolean", "default": true, "description": "Optional. Defaults to true. When true and one endpoint object is an ancestor/descendant of the other within the view, do not create a connection and return {suppressed:true}." }
-                },
-                "required": ["relationId"]
+                "type": "array", "maxItems": 50,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "relationId": { "type": "string", "description": "Existing model relation ID (IArchimateRelationship)." },
+                    "sourceObjectId": { "type": "string", "description": "Diagram object ID for the relation source endpoint (optional)." },
+                    "targetObjectId": { "type": "string", "description": "Diagram object ID for the relation target endpoint (optional)." },
+                    "policy": { "type": "string", "enum": ["auto", "fail"], "default": "auto", "description": "When objectId is not provided, 'auto' will pick the only occurrence per side if unambiguous; 'fail' will return an error." },
+                    "suppressWhenNested": { "type": "boolean", "default": true, "description": "Optional. Defaults to true. When true and one endpoint object is an ancestor/descendant of the other within the view, do not create a connection and return {suppressed:true}." }
+                  },
+                  "required": ["relationId"]
+                }
               }
             }
           }
         },
         "responses": {
-          "200": { "description": "Suppressed (no connection created)", "content": { "application/json": { "schema": { "type": "object", "properties": { "suppressed": { "type": "boolean" } }, "required": ["suppressed"] } } } },
-          "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Connection" } } } },
-          "400": { "description": "Bad Request (missing fields or invalid policy)" },
-          "404": { "description": "Not Found (viewId/relationId/objectId)" },
-          "409": { "description": "Conflict (no active model or ambiguous auto selection)" },
-          "422": { "description": "Unprocessable Entity (objectIds do not match relation endpoints or do not belong to the view)" }
+          "200": {
+            "description": "Results per item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "oneOf": [
+                      { "$ref": "#/components/schemas/Connection" },
+                      { "type": "object", "properties": { "suppressed": { "type": "boolean" } }, "required": ["suppressed"] }
+                    ]
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
-    "/views/{id}/objects/{objectId}/bounds": {
+    "/views/{id}/objects/bounds": {
       "patch": {
-        "summary": "Update view object bounds",
+        "summary": "Update view objects bounds (batch)",
+        "operationId": "updateViewObjectsBounds",
         "tags": ["Views"],
-        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }, { "name": "objectId", "in": "path", "required": true, "schema": { "type": "string" } } ],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Bounds" } } } },
-        "responses": { "200": { "description": "Updated", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ViewObject" } } } } }
-      }
-    },
-    "/views/{id}/objects/{objectId}/move": {
-      "patch": {
-        "summary": "Move existing diagram object into a container (reparent)",
-        "tags": ["Views"],
-        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }, { "name": "objectId", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "description": "Path objectId is ignored in batch mode; provide objectId in each item.",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "parentObjectId": { "type": "string", "description": "Target container object ID in the same view. Use '0' to move the object to the view root (no parent)." },
-                  "bounds": { "$ref": "#/components/schemas/Bounds", "description": "Optional full bounds to set after moving (relative to target container)." },
-                  "keepExistingConnection": { "type": "boolean", "default": false, "description": "Optional. Defaults to false. When false and a connection exists between the object and the target container object on this view, that connection is removed automatically after moving (typical nesting behavior). Set true to preserve the connection." }
-                },
-                "required": ["parentObjectId"]
+                "type": "array",
+                "items": { "type": "object", "properties": { "objectId": { "type": "string" }, "x": { "type": "integer" }, "y": { "type": "integer" }, "w": { "type": "integer" }, "h": { "type": "integer" } }, "required": ["objectId"] }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ViewObject" } } } } } }
+      }
+    },
+    "/views/{id}/objects/move": {
+      "patch": {
+        "summary": "Move diagram objects into a container (batch)",
+        "operationId": "moveViewObjects",
+        "tags": ["Views"],
+        "description": "Path objectId is ignored in batch mode; provide objectId in each item.",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "objectId": { "type": "string" },
+                    "parentObjectId": { "type": "string", "description": "Target container object ID in the same view. Use '0' to move the object to the view root (no parent)." },
+                    "bounds": { "$ref": "#/components/schemas/Bounds", "description": "Optional full bounds to set after moving (relative to target container)." },
+                    "keepExistingConnection": { "type": "boolean", "default": false, "description": "Optional. Defaults to false. When false and a connection exists between the object and the target container object on this view, that connection is removed automatically after moving (typical nesting behavior). Set true to preserve the connection." }
+                  },
+                  "required": ["objectId", "parentObjectId"]
+                }
               }
             }
           }
         },
         "responses": {
-          "200": { "description": "Moved", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ViewObject" } } } },
+          "200": { "description": "Moved", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ViewObject" } } } } },
           "400": { "description": "Bad Request (invalid params or cycle)" },
           "404": { "description": "Not Found (viewId/objectId/parentObjectId)" },
           "409": { "description": "Conflict (no active model)" }
         }
       }
     },
-    "/views/{id}/objects/{objectId}": {
+    "/views/{id}/objects": {
       "delete": {
-        "summary": "Remove object from view (not deleting element/relation)",
+        "summary": "Remove objects from view (batch)",
+        "operationId": "removeViewObjects",
         "tags": ["Views"],
-        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }, { "name": "objectId", "in": "path", "required": true, "schema": { "type": "string" } } ],
-        "responses": { "204": { "description": "Removed" } }
+        "description": "Path objectId is ignored in batch mode; provide objectId in each item.",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "type": "array", "maxItems": 50, "items": { "type": "object", "properties": { "objectId": { "type": "string" } }, "required": ["objectId"] } }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Removed", "content": { "application/json": { "schema": { "type": "object", "properties": { "total": { "type": "integer" }, "deleted": { "type": "integer" } }, "required": ["total", "deleted"] } } } } }
       }
     },
 
     "/model/save": {
       "post": {
         "summary": "Save model",
+        "operationId": "saveModel",
         "tags": ["Model"],
         "requestBody": { "required": false, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SaveRequest" } } } },
         "responses": { "200": { "description": "Saved", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SaveResponse" } } } } }
@@ -498,6 +575,7 @@
     "/script/engines": {
       "get": {
         "summary": "List available script engines",
+        "operationId": "listScriptEngines",
         "tags": ["Script"],
         "responses": {
           "200": {
@@ -514,6 +592,7 @@
     "/script/run": {
       "post": {
         "summary": "Run a script",
+        "operationId": "runScript",
         "tags": ["Script"],
         "requestBody": {
           "required": true,
@@ -543,11 +622,7 @@
 
   "components": {
     "securitySchemes": {
-      "BearerAuth": {
-        "type": "http",
-        "scheme": "bearer",
-        "bearerFormat": "JWT"
-      }
+      "BearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
     },
     "schemas": {
       "Folder": {
@@ -556,7 +631,16 @@
           "id": { "type": "string" },
           "name": { "type": "string" },
           "path": { "type": "string" },
-          "children": { "type": "array", "items": { "$ref": "#/components/schemas/Folder" } }
+          "children": { "type": "array", "items": { "$ref": "#/components/schemas/FolderChild" } }
+        },
+        "required": ["id", "name"]
+      },
+      "FolderChild": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "path": { "type": "string" }
         },
         "required": ["id", "name"]
       },
@@ -576,20 +660,7 @@
       "ElementWithRelations": {
         "allOf": [
           { "$ref": "#/components/schemas/Element" },
-          {
-            "type": "object",
-            "properties": {
-              "relations": {
-                "type": "array",
-                "items": {
-                  "oneOf": [
-                    { "$ref": "#/components/schemas/Relation" },
-                    { "$ref": "#/components/schemas/ElementRelationWithEndpoints" }
-                  ]
-                }
-              }
-            }
-          }
+          { "type": "object", "properties": { "relations": { "type": "array", "items": { "oneOf": [ { "$ref": "#/components/schemas/Relation" }, { "$ref": "#/components/schemas/ElementRelationWithEndpoints" } ] } } } }
         ]
       },
       "ElementPatch": {
@@ -680,10 +751,7 @@
       },
       "Point": {
         "type": "object",
-        "properties": {
-          "x": { "type": "integer" },
-          "y": { "type": "integer" }
-        },
+        "properties": { "x": { "type": "integer" }, "y": { "type": "integer" } },
         "required": ["x", "y"]
       },
       "SearchItem": {
@@ -710,24 +778,8 @@
               "includeProps": { "type": "boolean" },
               "limit": { "type": "integer" },
               "offset": { "type": "integer" },
-              "scanned": {
-                "type": "object",
-                "properties": {
-                  "folders": { "type": "integer" },
-                  "elements": { "type": "integer" },
-                  "relations": { "type": "integer" },
-                  "views": { "type": "integer" }
-                }
-              },
-              "matched": {
-                "type": "object",
-                "properties": {
-                  "elements": { "type": "integer" },
-                  "relations": { "type": "integer" },
-                  "views": { "type": "integer" },
-                  "total": { "type": "integer" }
-                }
-              },
+              "scanned": { "type": "object", "properties": { "folders": { "type": "integer" }, "elements": { "type": "integer" }, "relations": { "type": "integer" }, "views": { "type": "integer" } } },
+              "matched": { "type": "object", "properties": { "elements": { "type": "integer" }, "relations": { "type": "integer" }, "views": { "type": "integer" }, "total": { "type": "integer" } } },
               "samples": { "type": "array", "items": { "type": "string" } }
             }
           }
@@ -736,18 +788,11 @@
       },
       "SaveRequest": {
         "type": "object",
-        "properties": {
-          "modelId": { "type": "string" },
-          "createBackup": { "type": "boolean", "default": true }
-        }
+        "properties": { "modelId": { "type": "string" }, "createBackup": { "type": "boolean", "default": true } }
       },
       "SaveResponse": {
         "type": "object",
-        "properties": {
-          "saved": { "type": "boolean" },
-          "modelId": { "type": "string" },
-          "path": { "type": "string" }
-        },
+        "properties": { "saved": { "type": "boolean" }, "modelId": { "type": "string" }, "path": { "type": "string" } },
         "required": ["saved"]
       },
       "ElementRelationWithEndpoints": {
@@ -763,7 +808,38 @@
         "type": "object",
         "properties": {
           "installed": { "type": "boolean" },
-          "engines": { "type": "array", "items": { "type": "string" } }
+          "engines": { "type": "array", "items": { "type": "string" } },
+          "documentation": {
+            "type": "object",
+            "description": "Documentation and guides for autonomous agents",
+            "properties": {
+              "jArchiGuide": {
+                "type": "string",
+                "description": "Complete guide for writing jArchi scripts"
+              },
+              "commonPatterns": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "description": { "type": "string" },
+                    "code": { "type": "string" }
+                  }
+                }
+              },
+              "archiMateContext": {
+                "type": "object",
+                "description": "ArchiMate modeling context for agents",
+                "properties": {
+                  "elementTypes": { "type": "array", "items": { "type": "string" } },
+                  "relationTypes": { "type": "array", "items": { "type": "string" } },
+                  "viewTypes": { "type": "array", "items": { "type": "string" } },
+                  "modelingTips": { "type": "array", "items": { "type": "string" } }
+                }
+              }
+            }
+          }
         },
         "required": ["installed", "engines"]
       },
