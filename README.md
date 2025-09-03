@@ -32,29 +32,10 @@ curl -s http://127.0.0.1:8765/status
   `GET /views/{id}/image?format=png|svg`, `PATCH /views/{id}/objects/{objectId}/bounds`
 - Legacy: `GET /views/content?id=...`, `POST /views/add-element`
 
-## MCP JSON-RPC
-- Эндпоинт: `POST /mcp` (JSON-RPC 2.0).
-- Поддерживаются методы `initialize`, `notifications/initialized`, `tools/list`, `tools/call`.
-- Пример вызова списка инструментов:
-  ```bash
-  curl -s -X POST http://127.0.0.1:8765/mcp \
-    -H 'Content-Type: application/json' \
-    -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | jq .
-  ```
-- Пример вызова инструмента:
-  ```bash
-  curl -s -X POST http://127.0.0.1:8765/mcp \
-    -H 'Content-Type: application/json' \
-    -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"status","args":{}}}' | jq .
-  ```
-- Ошибки маппятся на коды JSON-RPC (`-32001` BadRequest, `-32004` NotFound и т.д.).
-- Уведомления (запросы без `id`) возвращают `HTTP 204` без тела.
-- Бинарные данные (например, изображение вида) выдаются в полях `data_base64` + `content_type`.
-
 ## MCP Server через npx (универсальный способ)
 Начиная с версии 2.0, MCP сервер может запускаться через универсальный npx-пакет, который автоматически генерирует MCP инструменты из OpenAPI спецификации:
 
-### Пример `.cursor/mcp.json` (новый способ)
+### Пример `.cursor/mcp.json`
 ```json
 {
   "mcpServers": {
@@ -71,15 +52,7 @@ curl -s http://127.0.0.1:8765/status
 }
 ```
 
-### Пример `.cursor/mcp.json` (legacy способ)
-```json
-{
-  "url": "http://127.0.0.1:8765/mcp",
-  "caps": []
-}
-```
-
-**Преимущества нового способа:**
+**Преимущества подхода через npx:**
 - Автоматическая генерация MCP инструментов из OpenAPI спецификации
 - Не требует отдельного MCP сервера
 - Всегда актуальные инструменты, синхронизированные с REST API

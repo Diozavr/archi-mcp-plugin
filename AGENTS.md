@@ -34,8 +34,8 @@
 
 ## Архитектура
 - Бизнес‑логика вынесена в пакет `com.archimatetool.mcp.core.*`.
-- REST‑хендлеры и JSON‑RPC контроллер лишь парсят протокол и делегируют вызовы в ядро.
-- Ядро выбрасывает `CoreException`‑подтипы; `ResponseUtil` и MCP маппят их на HTTP/JSON‑RPC ошибки.
+- REST‑хендлеры лишь парсят протокол и делегируют вызовы в ядро.
+- Ядро выбрасывает `CoreException`‑подтипы; `ResponseUtil` маппит их на HTTP ошибки.
 
 ## Качество/развитие
 - JSON обрабатывается через библиотеку Jackson.
@@ -56,22 +56,6 @@
   операции над объектами вида, `/views/{id}/image`, `/search`, сценарии ошибок и уборку.
   Перед запуском откройте тестовую модель `testdata/Archisurance.archimate` в Archi или
   обеспечьте активную модель.
-
-## MCP JSON-RPC
-- Эндпоинт: `POST /mcp` (JSON-RPC 2.0, только localhost).
-- Методы протокола: `initialize`, `notifications/initialized`, `tools/list`, `tools/call`.
-- Запрос: `{ "jsonrpc":"2.0", "id":1, "method":"tools/list", "params":{} }`.
-- Вызов инструмента: `{ "jsonrpc":"2.0", "id":2, "method":"tools/call", "params":{"name":"status","args":{}} }`.
-- Успех: `{ "jsonrpc":"2.0", "id":1, "result":{...} }`.
-- Ошибка: `{ "jsonrpc":"2.0", "id":1, "error":{"code":-32004,"message":"..."} }`.
-- Уведомления (без `id`) возвращают HTTP 204 без тела.
-- Ошибки ядра маппятся на диапазон `-32000..-32099`:
-  - BadRequest → `-32001`
-  - NotFound → `-32004`
-  - Conflict → `-32009`
-  - Unprocessable → `-32022`
-- Бинарные данные (например, изображения вида) отдаются как `{ "data_base64": "...", "content_type": "image/png" }`.
-- `tools/list` перечисляет все доступные методы с описаниями и параметрами.
 
 ## MCP Server через npx (универсальный способ)
 - Альтернативный способ запуска MCP: через `npx @tyk-technologies/api-to-mcp@latest --spec http://127.0.0.1:8765/openapi.json`
