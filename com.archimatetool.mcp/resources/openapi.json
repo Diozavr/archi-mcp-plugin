@@ -25,6 +25,7 @@
     "/status": {
       "get": {
         "summary": "Service status",
+        "operationId": "getStatus",
         "tags": ["System"],
         "responses": {
           "200": {
@@ -49,6 +50,7 @@
     "/openapi.json": {
       "get": {
         "summary": "OpenAPI spec",
+        "operationId": "getOpenapiSpec",
         "tags": ["System"],
         "responses": { "200": { "description": "Spec" } }
       }
@@ -57,6 +59,7 @@
     "/types": {
       "get": {
         "summary": "List supported element/relation/view types",
+        "operationId": "listTypes",
         "tags": ["Types"],
         "responses": {
           "200": {
@@ -81,6 +84,7 @@
     "/folders": {
       "get": {
         "summary": "Get model folder tree",
+        "operationId": "getFolders",
         "tags": ["Folders"],
         "parameters": [
           { "name": "modelId", "in": "query", "schema": { "type": "string" }, "required": false }
@@ -100,6 +104,7 @@
     "/folder/ensure": {
       "post": {
         "summary": "Ensure folder exists by path",
+        "operationId": "ensureFolder",
         "tags": ["Folders"],
         "requestBody": {
           "required": true,
@@ -128,6 +133,7 @@
     "/search": {
       "get": {
         "summary": "Search elements, relations and views (recursive)",
+        "operationId": "search",
         "tags": ["Search"],
         "description": "Substring search over available fields. Matching is non-strict (OR): name is always searched; documentation is searched when includeDocs=true; properties (key and value) are searched when includeProps=true. When property=key=value filters are provided, they are applied as strict AND filters in addition to text matching.",
         "parameters": [
@@ -153,6 +159,7 @@
     "/elements": {
       "get": {
         "summary": "Get elements (batch by ids)",
+        "operationId": "getElements",
         "tags": ["Elements"],
         "parameters": [
           { "name": "ids", "in": "query", "required": true, "style": "form", "explode": true, "schema": { "type": "array", "maxItems": 50, "items": { "type": "string" } } },
@@ -172,6 +179,7 @@
       },
       "post": {
         "summary": "Create elements (batch)",
+        "operationId": "createElements",
         "tags": ["Elements"],
         "requestBody": {
           "required": true,
@@ -204,6 +212,7 @@
       },
       "patch": {
         "summary": "Update elements (batch)",
+        "operationId": "updateElements",
         "tags": ["Elements"],
         "requestBody": {
           "required": true,
@@ -231,6 +240,7 @@
       },
       "delete": {
         "summary": "Delete elements (batch)",
+        "operationId": "deleteElements",
         "tags": ["Elements"],
         "requestBody": {
           "required": true,
@@ -239,48 +249,19 @@
         "responses": { "200": { "description": "Deleted", "content": { "application/json": { "schema": { "type": "object", "properties": { "total": { "type": "integer" }, "deleted": { "type": "integer" } }, "required": ["total","deleted"] } } } } }
       }
     },
-    "/elements/{id}/relations": {
-      "get": {
-        "summary": "List relations attached to an element",
-        "tags": ["Elements"],
-        "description": "Returns relations where the given element is source and/or target. Use 'direction' to filter, and 'includeElements' to inline endpoint element DTOs.",
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
-          { "name": "direction", "in": "query", "required": false, "schema": { "type": "string", "enum": ["in","out","both"], "default": "both" } },
-          { "name": "includeElements", "in": "query", "required": false, "schema": { "type": "boolean", "default": false } }
-        ],
-        "responses": {
-          "200": {
-            "description": "Relations",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "total": { "type": "integer" },
-                    "items": {
-                      "type": "array",
-                      "items": { "oneOf": [ { "$ref": "#/components/schemas/Relation" }, { "$ref": "#/components/schemas/ElementRelationWithEndpoints" } ] }
-                    }
-                  },
-                  "required": ["total","items"]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
+    
 
     "/relations": {
       "get": {
         "summary": "Get relations (batch by ids)",
+        "operationId": "getRelations",
         "tags": ["Relations"],
         "parameters": [ { "name": "ids", "in": "query", "required": true, "style": "form", "explode": true, "schema": { "type": "array", "maxItems": 50, "items": { "type": "string" } } } ],
         "responses": { "200": { "description": "Relations", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Relation" } } } } } }
       },
       "post": {
         "summary": "Create relations (batch)",
+        "operationId": "createRelations",
         "tags": ["Relations"],
         "requestBody": {
           "required": true,
@@ -315,6 +296,7 @@
       },
       "patch": {
         "summary": "Update relations (batch)",
+        "operationId": "updateRelations",
         "tags": ["Relations"],
         "requestBody": {
           "required": true,
@@ -341,6 +323,7 @@
       },
       "delete": {
         "summary": "Delete relations (batch)",
+        "operationId": "deleteRelations",
         "tags": ["Relations"],
         "requestBody": {
           "required": true,
@@ -353,12 +336,14 @@
     "/views": {
       "get": {
         "summary": "List views",
+        "operationId": "listViews",
         "tags": ["Views"],
         "parameters": [ { "name": "modelId", "in": "query", "required": false, "schema": { "type": "string" } } ],
         "responses": { "200": { "description": "Views", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/View" } } } } } }
       },
       "post": {
         "summary": "Create view",
+        "operationId": "createView",
         "tags": ["Views"],
         "requestBody": {
           "required": true,
@@ -370,12 +355,14 @@
     "/views/{id}": {
       "get": {
         "summary": "Get view",
+        "operationId": "getView",
         "tags": ["Views"],
         "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
         "responses": { "200": { "description": "View", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/View" } } } } }
       },
       "delete": {
         "summary": "Delete view",
+        "operationId": "deleteView",
         "tags": ["Views"],
         "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
         "responses": { "204": { "description": "Deleted" } }
@@ -384,6 +371,7 @@
     "/views/{id}/content": {
       "get": {
         "summary": "Get view content (objects, connections, layout)",
+        "operationId": "getViewContent",
         "tags": ["Views"],
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
@@ -396,6 +384,7 @@
     "/views/{id}/image": {
       "get": {
         "summary": "Render view to image (PNG/SVG)",
+        "operationId": "renderViewImage",
         "tags": ["Views"],
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
@@ -416,6 +405,7 @@
     "/views/{id}/add-element": {
       "post": {
         "summary": "Add elements to view (batch)",
+        "operationId": "addElementsToView",
         "tags": ["Views"],
         "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
         "requestBody": {
@@ -453,6 +443,7 @@
     "/views/{id}/add-relation": {
       "post": {
         "summary": "Add relations to view (batch)",
+        "operationId": "addRelationsToView",
         "tags": ["Views"],
         "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
         "requestBody": {
@@ -499,6 +490,7 @@
     "/views/{id}/objects/bounds": {
       "patch": {
         "summary": "Update view objects bounds (batch)",
+        "operationId": "updateViewObjectsBounds",
         "tags": ["Views"],
         "description": "Path objectId is ignored in batch mode; provide objectId in each item.",
         "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
@@ -519,6 +511,7 @@
     "/views/{id}/objects/move": {
       "patch": {
         "summary": "Move diagram objects into a container (batch)",
+        "operationId": "moveViewObjects",
         "tags": ["Views"],
         "description": "Path objectId is ignored in batch mode; provide objectId in each item.",
         "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
@@ -553,6 +546,7 @@
     "/views/{id}/objects": {
       "delete": {
         "summary": "Remove objects from view (batch)",
+        "operationId": "removeViewObjects",
         "tags": ["Views"],
         "description": "Path objectId is ignored in batch mode; provide objectId in each item.",
         "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
@@ -571,6 +565,7 @@
     "/model/save": {
       "post": {
         "summary": "Save model",
+        "operationId": "saveModel",
         "tags": ["Model"],
         "requestBody": { "required": false, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SaveRequest" } } } },
         "responses": { "200": { "description": "Saved", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SaveResponse" } } } } }
@@ -594,7 +589,16 @@
           "id": { "type": "string" },
           "name": { "type": "string" },
           "path": { "type": "string" },
-          "children": { "type": "array", "items": { "$ref": "#/components/schemas/Folder" } }
+          "children": { "type": "array", "items": { "$ref": "#/components/schemas/FolderChild" } }
+        },
+        "required": ["id", "name"]
+      },
+      "FolderChild": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "path": { "type": "string" }
         },
         "required": ["id", "name"]
       },

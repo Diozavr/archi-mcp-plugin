@@ -79,6 +79,25 @@ public class Tool {
         }
         schema.put("additionalProperties", Boolean.FALSE);
         m.put("inputSchema", schema);
+        // Minimal inline usage hint to help MCP agents that don't read external docs
+        String exampleArgs = "{";
+        for (int i = 0; i < params.size(); i++) {
+            ToolParam tp = params.get(i);
+            exampleArgs += "\\\"" + tp.getName() + "\\\"" + ":" + exampleValue(tp.getType());
+            if (i < params.size() - 1) exampleArgs += ",";
+        }
+        exampleArgs += "}";
+        String usage = "{\\\"jsonrpc\\\":\\\"2.0\\\",\\\"id\\\":1,\\\"method\\\":\\\"tools/call\\\",\\\"params\\\":{\\\"name\\\":\\\"" + name + "\\\",\\\"arguments\\\":" + exampleArgs + "}}";
+        m.put("usage", usage);
         return m;
+    }
+
+    private String exampleValue(String type) {
+        if ("string".equals(type)) return "\"value\"";
+        if ("integer".equals(type) || "number".equals(type)) return "0";
+        if ("boolean".equals(type)) return "false";
+        if ("array".equals(type)) return "[]";
+        if ("object".equals(type)) return "{}";
+        return "null";
     }
 }

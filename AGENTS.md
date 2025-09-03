@@ -38,7 +38,6 @@
 - Ядро выбрасывает `CoreException`‑подтипы; `ResponseUtil` и MCP маппят их на HTTP/JSON‑RPC ошибки.
 
 ## Качество/развитие
-- Сохранять legacy‑маршруты до решения о декомиссии.
 - JSON обрабатывается через библиотеку Jackson.
 - Не расширять сетевую поверхность (0.0.0.0, аутентификация) без согласования: сервис задуман как локальный.
 - При изменениях `resources/openapi.json` (включая тексты `summary/description` и описания параметров)
@@ -70,3 +69,19 @@
   - Unprocessable → `-32022`
 - Бинарные данные (например, изображения вида) отдаются как `{ "data_base64": "...", "content_type": "image/png" }`.
 - `tools/list` перечисляет все доступные методы с описаниями и параметрами.
+
+## MCP Server через npx (универсальный способ)
+- Альтернативный способ запуска MCP: через `npx @tyk-technologies/api-to-mcp@latest --spec http://127.0.0.1:8765/openapi.json`
+- Автоматически генерирует MCP инструменты из OpenAPI спецификации
+- Не требует поддержки встроенного JSON-RPC эндпоинта `/mcp`
+- Конфигурация в `.cursor/mcp.json`:
+  ```json
+  {
+    "mcpServers": {
+      "archi-api": {
+        "command": "npx",
+        "args": ["-y", "@tyk-technologies/api-to-mcp@latest", "--spec", "http://127.0.0.1:8765/openapi.json"]
+      }
+    }
+  }
+  ```
