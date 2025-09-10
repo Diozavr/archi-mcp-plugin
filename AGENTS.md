@@ -1,83 +1,66 @@
 # AGENTS
 
-Ключевые указания для работы с плагином и его REST API.
+Key guidance for working with the plugin and its REST API.
 
-## Среда
-- ОС: Windows, shell — WSL. Примеры команд — bash.
-- Для REST‑проверок используйте `curl` и `jq`.
+Note on localization parity: this document has both English and Russian versions (`AGENTS.md` and `AGENTS_ru.md` if present). Any change made to one language MUST be mirrored in the other to keep them in sync.
 
-## Конфигурация
-- Сервер MCP можно запускать и останавливать кнопкой на отдельной панели инструментов "MCP"; иконка отражает состояние.
-- Порт HTTP сервера MCP задаётся через System Property `archi.mcp.port`, переменную окружения `ARCHI_MCP_PORT` или Preferences (Archi → Preferences → MCP). Приоритет: System Property → Env → Preferences → Default (`8765`).
+## Environment
+- OS: Windows, shell — WSL. Command examples use bash.
+- For REST checks use `curl` and `jq`.
 
-## Инварианты API
-- Биндинг только `127.0.0.1:8765` (локально).
-- При отсутствии активной модели — HTTP 409 и `{"error":"no active model"}`.
-- Совместимость путей:
-  - Новые: `/views/{id}/content`, `/views/{id}/add-element` (POST), подресурсы типа `/views/{id}/objects/...`.
+## Configuration
+- You can start/stop the MCP server with a button on the dedicated “MCP” toolbar; the icon reflects the state.
+- The MCP HTTP server port can be set via System Property `archi.mcp.port`, environment variable `ARCHI_MCP_PORT`, or Preferences (Archi → Preferences → MCP). Precedence: System Property → Env → Preferences → Default (`8765`).
+
+## API invariants
+- Bind only to `127.0.0.1:8765` (local).
+- If there is no active model — HTTP 409 and `{"error":"no active model"}`.
+- Path compatibility:
+  - New: `/views/{id}/content`, `/views/{id}/add-element` (POST), sub-resources like `/views/{id}/objects/...`.
   - Legacy: `/views/content?id=...`, `/views/add-element`.
-- `/search` поддерживает повторяющиеся параметры `property=key=value`.
-- `/views/{id}/image` поддерживает `format=png|svg`; `dpi` применимо только к PNG.`
+- `/search` supports repeated parameters `property=key=value`.
+- `/views/{id}/image` supports `format=png|svg`; `dpi` applies to PNG only.
 
-### Семантика поиска
-- `q` ищется по OR:
-  - всегда по `name`
-  - по `documentation`, если `includeDocs=true`
-  - по `properties` (key/value), если `includeProps=true`
-- `property=key=value` — строгие AND‑фильтры поверх текстового поиска.
-- `kind` сужает область до `element|relation|view`.
-- `debug=true` добавляет в ответ поле `debug` со счётчиками и примерами.
+### Search semantics
+- `q` is OR-matched:
+  - always by `name`
+  - by `documentation` if `includeDocs=true`
+  - by `properties` (key/value) if `includeProps=true`
+- `property=key=value` are strict AND-filters on top of the text search.
+- `kind` narrows the scope to `element|relation|view`.
+- `debug=true` adds a `debug` field with counters and examples.
 
-## Работа с моделью
-- Любые изменения EMF‑модели — через `org.eclipse.swt.widgets.Display.getDefault().syncExec(...)`.
-- Поиск объектов по id — `ArchimateModelUtils.getObjectByID(...)`.
+## Working with the model
+- Any EMF model changes must go via `org.eclipse.swt.widgets.Display.getDefault().syncExec(...)`.
+- Lookup by id — `ArchimateModelUtils.getObjectByID(...)`.
 
-## Архитектура
-- Бизнес‑логика вынесена в пакет `com.archimatetool.mcp.core.*`.
-- REST‑хендлеры и JSON‑RPC контроллер лишь парсят протокол и делегируют вызовы в ядро.
-- Ядро выбрасывает `CoreException`‑подтипы; `ResponseUtil` и MCP маппят их на HTTP/JSON‑RPC ошибки.
+## Architecture
+- Business logic lives in `com.archimatetool.mcp.core.*`.
+- REST handlers only parse protocol and delegate to the core.
+- The core throws `CoreException` subtypes; `ResponseUtil` and MCP map them to HTTP/JSON‑RPC errors.
 
-## Качество/развитие
-- JSON обрабатывается через библиотеку Jackson.
-- Не расширять сетевую поверхность (0.0.0.0, аутентификация) без согласования: сервис задуман как локальный.
-- При изменениях `resources/openapi.json` (включая тексты `summary/description` и описания параметров)
-  необходимо синхронизировать статические описания параметров MCP‑инструментов в `archi-mcp-server/server.py`.
-  Для REST‑контракта «истина» — `openapi.json`. `server.py` — только источник описаний для LLM (раздел `PARAM_DESCRIPTIONS`).
+## Quality/evolution
+- JSON is processed with Jackson.
+- Do not widen the network surface (0.0.0.0, authentication) without prior agreement: the service is intended to be local.
+  For the REST contract the source of truth is `openapi.json`.
 
-## Быстрые проверки
+## Quick checks
 - `GET /status` → `{"ok":true,...}`
-- `POST /elements` с типом в kebab-case создаёт элемент.
+- `POST /elements` with a type in kebab-case creates an element.
 - `POST /model/save` → `{"saved":true,...}`
-- `GET /script/engines` → `{installed:false, engines:[]}` (при отсутствии scripting-плагина).
-- `POST /script/run` без scripting-плагина возвращает 501.
-- `POST /script/run` отклоняет неизвестный `engine`, некорректный `timeoutMs` и усечёт `stdout/stderr` после ~10k символов.
-- Расширенный smoke‑тест: `com.archimatetool.mcp/test/test_smoke.sh` покрывает маршруты
-  `/openapi.json`, `/types`, `/folders`, создание видов/элементов/отношений,
-  операции над объектами вида, `/views/{id}/image`, `/search`, сценарии ошибок и уборку.
-  Перед запуском откройте тестовую модель `testdata/Archisurance.archimate` в Archi или
-  обеспечьте активную модель.
+- `GET /script/engines` → `{installed:false, engines:[]}` (when the scripting plugin is missing).
+- `POST /script/run` returns 501 if the scripting plugin is not installed.
+- `POST /script/run` rejects unknown `engine`, invalid `timeoutMs`, and truncates `stdout/stderr` after ~10k chars.
+- Extended smoke test: `com.archimatetool.mcp/test/test_smoke.sh` covers routes
+  `/openapi.json`, `/types`, `/folders`, creating views/elements/relations,
+  view object operations, `/views/{id}/image`, `/search`, error scenarios, and cleanup.
+  Before running, open the test model `testdata/Archisurance.archimate` in Archi or ensure there is an active model.
 
-## MCP JSON-RPC
-- Эндпоинт: `POST /mcp` (JSON-RPC 2.0, только localhost).
-- Методы протокола: `initialize`, `notifications/initialized`, `tools/list`, `tools/call`.
-- Запрос: `{ "jsonrpc":"2.0", "id":1, "method":"tools/list", "params":{} }`.
-- Вызов инструмента: `{ "jsonrpc":"2.0", "id":2, "method":"tools/call", "params":{"name":"status","args":{}} }`.
-- Успех: `{ "jsonrpc":"2.0", "id":1, "result":{...} }`.
-- Ошибка: `{ "jsonrpc":"2.0", "id":1, "error":{"code":-32004,"message":"..."} }`.
-- Уведомления (без `id`) возвращают HTTP 204 без тела.
-- Ошибки ядра маппятся на диапазон `-32000..-32099`:
-  - BadRequest → `-32001`
-  - NotFound → `-32004`
-  - Conflict → `-32009`
-  - Unprocessable → `-32022`
-- Бинарные данные (например, изображения вида) отдаются как `{ "data_base64": "...", "content_type": "image/png" }`.
-- `tools/list` перечисляет все доступные методы с описаниями и параметрами.
-
-## MCP Server через npx (универсальный способ)
-- Альтернативный способ запуска MCP: через `npx @tyk-technologies/api-to-mcp@latest --spec http://127.0.0.1:8765/openapi.json`
-- Автоматически генерирует MCP инструменты из OpenAPI спецификации
-- Не требует поддержки встроенного JSON-RPC эндпоинта `/mcp`
-- Конфигурация в `.cursor/mcp.json`:
+## MCP Server via npx (universal way)
+- Preferred way to run MCP: `npx @tyk-technologies/api-to-mcp@latest --spec http://127.0.0.1:8765/openapi.json`
+- Automatically generates MCP tools from the OpenAPI spec
+- Does not require the built‑in JSON‑RPC endpoint `/mcp`
+- Configuration in `.cursor/mcp.json`:
   ```json
   {
     "mcpServers": {

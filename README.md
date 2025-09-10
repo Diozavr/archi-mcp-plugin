@@ -1,64 +1,50 @@
 # Archi MCP Plugin
 
-Локальный HTTP API поверх активной модели Archi (ArchiMate). Служит бэкендом для MCP‑сервера и может использоваться напрямую через REST (только localhost).
+Provides a local HTTP API on top of the currently active [Archi](https://archimatetool.com/) model. Acts as a backend for the MCP server [TykTechnologies/api-to-mcp](https://github.com/TykTechnologies/api-to-mcp) and can be used directly via REST (localhost only).
 
-- Хост/порт: http://127.0.0.1:8765
-- Запуск: автоматически при старте Archi (Bundle-Activator + org.eclipse.ui.startup)
-- Требования: JavaSE 17, Archi (PDE), зависимости `org.eclipse.ui`, `com.archimatetool.editor`
+![image](docs/image.png)
 
-## Настройки
-- Порт HTTP сервера можно изменить в Archi → Preferences → MCP.
-- Приоритет источников порта: System Property `archi.mcp.port` → Env `ARCHI_MCP_PORT` → Preferences → Default (`8765`).
 
-## Toolbar (MCP Server)
-Плагин добавляет отдельную панель инструментов "MCP" с переключателем "MCP Server". Иконка зелёная при запущенном сервере и красная при остановленном. Нажатие запускает или останавливает сервер без перезапуска Archi. Тултип показывает текущий порт (127.0.0.1:PORT). Если панели не видно, включите "MCP" в `Window → Customize Perspective… → Tool Bar Visibility`. При занятом порте отображается сообщение об ошибке.
+## Plugin capabilities
+Enables LLMs to fetch model information, modify objects and diagrams, and execute scripts via the REST API.
 
-## Быстрый старт (PDE/Eclipse)
-1) Импортируйте `com.archimatetool.mcp` как PDE‑плагин.
-2) Запустите Eclipse Application (Archi). Плагин стартует автоматически.
-3) Откройте модель в Archi.
-4) Проверка:
-```bash
-curl -s http://127.0.0.1:8765/status
-```
 
-## Эндпоинты (MVP)
-- Сервис: `GET /status`, `GET /openapi.json`, `GET /types`
-- Папки/поиск: `GET /folders`, `POST /folder/ensure`, `GET /search`
-- Элементы: `POST /elements`, `GET|PATCH|DELETE /elements/{id}`
-  - Обогащение ответа элемента через query: `?include=relations[&includeElements=true]`
-- Связи: `POST /relations`, `GET|PATCH|DELETE /relations/{id}`
-- Виды: `GET /views`, `POST /views`, `GET|DELETE /views/{id}`, `GET /views/{id}/content`,
-  `GET /views/{id}/image?format=png|svg`, `PATCH /views/{id}/objects/{objectId}/bounds`
-- Legacy: `GET /views/content?id=...`, `POST /views/add-element`
+Provides LLMs access to the **currently active** Archi model:
+- Search elements and relations in the model
+- Create and edit elements
+- Create and edit relations
+- Create and edit diagrams
+  - Add elements and relations to a diagram, remove from a diagram, move elements
+  - Support for nested elements
+  - Export diagram images to PNG and SVG
+- Get the list of available element and relation types
+- Run scripts (requires the jArchi plugin to be installed)
+- Retrieve status and openapi.json
 
-## MCP JSON-RPC
-- Эндпоинт: `POST /mcp` (JSON-RPC 2.0).
-- Поддерживаются методы `initialize`, `notifications/initialized`, `tools/list`, `tools/call`.
-- Пример вызова списка инструментов:
-  ```bash
-  curl -s -X POST http://127.0.0.1:8765/mcp \
-    -H 'Content-Type: application/json' \
-    -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | jq .
-  ```
-- Пример вызова инструмента:
-  ```bash
-  curl -s -X POST http://127.0.0.1:8765/mcp \
-    -H 'Content-Type: application/json' \
-    -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"status","args":{}}}' | jq .
-  ```
-- Ошибки маппятся на коды JSON-RPC (`-32001` BadRequest, `-32004` NotFound и т.д.).
-- Уведомления (запросы без `id`) возвращают `HTTP 204` без тела.
-- Бинарные данные (например, изображение вида) выдаются в полях `data_base64` + `content_type`.
+Most operations support batch mode to speed up workflows by processing multiple items at once.
 
-## MCP Server через npx (универсальный способ)
-Начиная с версии 2.0, MCP сервер может запускаться через универсальный npx-пакет, который автоматически генерирует MCP инструменты из OpenAPI спецификации:
 
-### Пример `.cursor/mcp.json` (новый способ)
+## Installation
+
+### Archi
+Requirements: Archi 5.x; running scripts requires the jArchi plugin.
+
+Download from [Releases](https://github.com/Diozavr/archi-mcp-plugin/releases).
+To install, place the .zip file into the Archi `dropins` directory.
+
+The plugin starts automatically with Archi.
+
+You can change the HTTP server port in Archi → Preferences → MCP.
+
+Note: the API is available **without authentication** at http://localhost:8765/ (local connections only).
+
+### MCP
+Example configuration for Cursor
+
 ```json
 {
   "mcpServers": {
-    "archi-api": {
+    "archi-mcp": {
       "command": "npx",
       "args": [
         "-y",
@@ -71,27 +57,27 @@ curl -s http://127.0.0.1:8765/status
 }
 ```
 
-### Пример `.cursor/mcp.json` (legacy способ)
-```json
-{
-  "url": "http://127.0.0.1:8765/mcp",
-  "caps": []
-}
-```
 
-**Преимущества нового способа:**
-- Автоматическая генерация MCP инструментов из OpenAPI спецификации
-- Не требует отдельного MCP сервера
-- Всегда актуальные инструменты, синхронизированные с REST API
-- Универсальное решение для любых OpenAPI сервисов
+## Archi settings
+- You can change the HTTP server port in Archi → Preferences → MCP.
+- Port precedence: Env `ARCHI_MCP_PORT` → Preferences → Default (`8765`).
 
-## Архитектура
-- Вход: `com.archimatetool.mcp.Activator` → `HttpServerRunner` (com.sun.net.httpserver)
-- Модель: `ModelApi` (создание/удаление/поиск, DTO, bounds, сохранение)
-- UI: изменения модели через `Display.getDefault().syncExec(...)`
+### Toolbar (MCP Server)
+The plugin adds a dedicated "MCP" toolbar with an "MCP Server" toggle. The icon is green when the server is running and red when stopped. Clicking toggles the server without restarting Archi. The tooltip shows the current port (127.0.0.1:PORT). If you don't see the toolbar, enable "MCP" in `Window → Customize Perspective… → Tool Bar Visibility`. If the port is busy, an error dialog is shown.
 
-## Ограничения
-- Слушает только 127.0.0.1
-- JSON‑парсинг и сериализация через Jackson
-- `/elements` (GET) отсутствует — используйте `/search`
-- `/script/*` → 501
+## Building the plugin yourself
+
+The `com.archimatetool.mcp` folder is an Eclipse project (PDE). See detailed steps in [BUILD.md](BUILD.md).
+
+
+
+
+## TODO
+
+Next steps
+
+[] API Key authentication, configuration in Archi settings
+[] Headless mode support for the plugin
+[] Build instructions for the plugin
+[] Full build automation
+[] Prompt improvements for diagram operations
