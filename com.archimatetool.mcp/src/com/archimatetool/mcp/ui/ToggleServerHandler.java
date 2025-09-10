@@ -16,6 +16,8 @@ import org.eclipse.ui.commands.ICommandService;
 import org.eclipse.ui.commands.IElementUpdater;
 import org.eclipse.ui.menus.UIElement;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
+import org.eclipse.core.commands.Command;
+import org.eclipse.core.commands.State;
 
 import com.archimatetool.mcp.Activator;
 import com.archimatetool.mcp.Config;
@@ -36,6 +38,16 @@ public class ToggleServerHandler extends AbstractHandler implements IElementUpda
             }
             ICommandService cs = PlatformUI.getWorkbench().getService(ICommandService.class);
             if (cs != null) {
+                try {
+                    Command cmd = cs.getCommand("com.archimatetool.mcp.commands.toggleServer");
+                    if (cmd != null) {
+                        State state = cmd.getState("org.eclipse.ui.commands.toggleState");
+                        if (state != null) {
+                            state.setValue(Boolean.valueOf(act.isServerRunning()));
+                        }
+                    }
+                } catch (Exception ignore) {
+                }
                 cs.refreshElements("com.archimatetool.mcp.commands.toggleServer", null);
             }
         } catch (Exception ex) {

@@ -63,21 +63,22 @@ Example configuration for Cursor
 - Port precedence: Env `ARCHI_MCP_PORT` → Preferences → Default (`8765`).
 
 ### Toolbar (MCP Server)
-The plugin adds a dedicated "MCP" toolbar with an "MCP Server" toggle. The icon is green when the server is running and red when stopped. Clicking toggles the server without restarting Archi. The tooltip shows the current port (127.0.0.1:PORT). If you don't see the toolbar, enable "MCP" in `Window → Customize Perspective… → Tool Bar Visibility`. If the port is busy, an error dialog is shown.
+The plugin adds a dedicated "MCP" toolbar with an "MCP Server" toggle. Clicking toggles the server on/off without restarting Archi. 
 
 ## Building the plugin yourself
 
 The `com.archimatetool.mcp` folder is an Eclipse project (PDE). See detailed steps in [BUILD.md](BUILD.md).
 
 
+## AI Agents
+Code mostly(like 99%) written by Codex and Cursor.
 
-
-## TODO
+## Roadmap
 
 Next steps
 
-[] API Key authentication, configuration in Archi settings
-[] Headless mode support for the plugin
-[] Build instructions for the plugin
-[] Full build automation
-[] Prompt improvements for diagram operations
+* [] API Key authentication, configuration in Archi settings
+* [] Headless mode support for the plugin
+* [] Build instructions for the plugin
+* [] Full build automation
+* [] Prompt improvements for diagram operations

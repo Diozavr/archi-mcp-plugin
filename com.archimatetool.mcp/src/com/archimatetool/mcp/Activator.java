@@ -7,6 +7,8 @@ import org.eclipse.core.runtime.Platform;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.commands.ICommandService;
+import org.eclipse.core.commands.Command;
+import org.eclipse.core.commands.State;
 import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;
 
@@ -74,6 +76,17 @@ public class Activator implements BundleActivator {
         display.asyncExec(() -> {
             ICommandService cs = PlatformUI.getWorkbench().getService(ICommandService.class);
             if (cs != null) {
+                try {
+                    Command cmd = cs.getCommand("com.archimatetool.mcp.commands.toggleServer");
+                    if (cmd != null) {
+                        State state = cmd.getState("org.eclipse.ui.commands.toggleState");
+                        if (state != null) {
+                            state.setValue(Boolean.valueOf(isServerRunning()));
+                        }
+                    }
+                } catch (Exception ignore) {
+                    // Best-effort state sync; ignore if command not available yet
+                }
                 cs.refreshElements("com.archimatetool.mcp.commands.toggleServer", null);
             }
         });

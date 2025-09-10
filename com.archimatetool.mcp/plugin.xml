@@ -34,6 +34,10 @@
             id="com.archimatetool.mcp.commands.toggleServer"
             name="MCP Server"
             categoryId="com.archimatetool.mcp.category">
+         <state
+               id="org.eclipse.ui.commands.toggleState"
+               class="org.eclipse.ui.handlers.RegistryToggleState">
+         </state>
       </command>
    </extension>
 
@@ -46,16 +50,28 @@
    </extension>
 
    <extension
+         point="org.eclipse.ui.commandImages">
+      <image
+            commandId="com.archimatetool.mcp.commands.toggleServer"
+            icon="img/mcp_off.png">
+      </image>
+   </extension>
+
+   <extension
          point="org.eclipse.ui.menus">
       <menuContribution
-            locationURI="toolbar:com.archimatetool.mcp.toolbar">
-         <command
-               commandId="com.archimatetool.mcp.commands.toggleServer"
-               label="MCP Server"
-               style="toggle"
-               icon="img/mcp_off.png"
-               tooltip="Start/Stop MCP Server">
-         </command>
+            locationURI="toolbar:org.eclipse.ui.main.toolbar?after=additions">
+         <toolbar
+               id="com.archimatetool.mcp.toolbar"
+               label="MCP">
+            <command
+                  commandId="com.archimatetool.mcp.commands.toggleServer"
+                  label="MCP Server"
+                  style="toggle"
+                  icon="img/mcp_off.png"
+                  tooltip="Start/Stop MCP Server">
+            </command>
+         </toolbar>
       </menuContribution>
    </extension>
 
