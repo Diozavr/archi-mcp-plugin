@@ -1,0 +1,23 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Archi MCP Plugin
+Bundle-SymbolicName: ru.cinimex.archimatetool.mcp;singleton:=true
+Bundle-Version: 0.2.0.qualifier
+Bundle-Vendor: Cinimex
+Bundle-RequiredExecutionEnvironment: JavaSE-17
+Eclipse-BundleShape: dir
+Bundle-Activator: ru.cinimex.archimatetool.mcp.Activator
+Require-Bundle: org.eclipse.core.runtime,
+ org.eclipse.osgi,
+ org.eclipse.ui,
+ com.archimatetool.editor;bundle-version="[5.0.0,6.0.0)",
+ com.archimatetool.model;bundle-version="[5.0.0,6.0.0)",
+ com.archimatetool.export.svg,
+ com.archimatetool.script;bundle-version="[1.0.0,2.0.0)";resolution:=optional
+Bundle-ClassPath: .,
+ lib/jackson-annotations-2.17.1.jar,
+ lib/jackson-core-2.17.1.jar,
+ lib/jackson-databind-2.17.1.jar
+Automatic-Module-Name: ru.cinimex.archimatetool.mcp
+Bundle-ActivationPolicy: lazy
+

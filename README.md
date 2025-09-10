@@ -59,7 +59,7 @@ Example configuration for Cursor
 
 
 ## Archi settings
-- You can change the HTTP server port in Archi → Preferences → MCP.
+- You can change the HTTP server host and port in Archi → Preferences → MCP. Warning, changing host might be unsafe, because no auth and encryption is used!
 - Port precedence: Env `ARCHI_MCP_PORT` → Preferences → Default (`8765`).
 
 ### Toolbar (MCP Server)
@@ -67,7 +67,7 @@ The plugin adds a dedicated "MCP" toolbar with an "MCP Server" toggle. Clicking 
 
 ## Building the plugin yourself
 
-The `com.archimatetool.mcp` folder is an Eclipse project (PDE). See detailed steps in [BUILD.md](BUILD.md).
+The `ru.cinimex.archimatetool.mcp` folder is an Eclipse project (PDE). See detailed steps in [BUILD.md](BUILD.md).
 
 
 ## AI Agents

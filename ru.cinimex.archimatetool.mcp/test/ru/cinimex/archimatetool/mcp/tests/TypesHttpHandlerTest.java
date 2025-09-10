@@ -1,0 +1,30 @@
+package ru.cinimex.archimatetool.mcp.tests;
+
+import static org.junit.Assert.*;
+
+import org.junit.Test;
+
+import ru.cinimex.archimatetool.mcp.http.handlers.TypesHttpHandler;
+import ru.cinimex.archimatetool.mcp.server.JacksonJson;
+import com.fasterxml.jackson.databind.JsonNode;
+
+public class TypesHttpHandlerTest {
+
+    @Test
+    public void testListsNotEmpty() throws Exception {
+        FakeHttpExchange ex = new FakeHttpExchange("GET", "/types", null);
+        new TypesHttpHandler().handle(ex);
+        assertEquals(200, ex.getResponseCode());
+        JsonNode root = JacksonJson.mapper().readTree(ex.getResponseString());
+        assertTrue(root.get("elementTypes").size() > 0);
+        assertTrue(root.get("relationTypes").size() > 0);
+        assertTrue(root.get("viewTypes").size() > 0);
+    }
+
+    @Test
+    public void testRejectsNonGet() throws Exception {
+        FakeHttpExchange ex = new FakeHttpExchange("POST", "/types", "{}");
+        new TypesHttpHandler().handle(ex);
+        assertEquals(405, ex.getResponseCode());
+    }
+}

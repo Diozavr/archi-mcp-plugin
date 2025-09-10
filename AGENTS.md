@@ -35,7 +35,7 @@ Note on localization parity: this document has both English and Russian versions
 - Lookup by id — `ArchimateModelUtils.getObjectByID(...)`.
 
 ## Architecture
-- Business logic lives in `com.archimatetool.mcp.core.*`.
+- Business logic lives in `ru.cinimex.archimatetool.mcp.core.*`.
 - REST handlers only parse protocol and delegate to the core.
 - The core throws `CoreException` subtypes; `ResponseUtil` and MCP map them to HTTP/JSON‑RPC errors.
 
@@ -51,7 +51,7 @@ Note on localization parity: this document has both English and Russian versions
 - `GET /script/engines` → `{installed:false, engines:[]}` (when the scripting plugin is missing).
 - `POST /script/run` returns 501 if the scripting plugin is not installed.
 - `POST /script/run` rejects unknown `engine`, invalid `timeoutMs`, and truncates `stdout/stderr` after ~10k chars.
-- Extended smoke test: `com.archimatetool.mcp/test/test_smoke.sh` covers routes
+- Extended smoke test: `ru.cinimex.archimatetool.mcp/test/test_smoke.sh` covers routes
   `/openapi.json`, `/types`, `/folders`, creating views/elements/relations,
   view object operations, `/views/{id}/image`, `/search`, error scenarios, and cleanup.
   Before running, open the test model `testdata/Archisurance.archimate` in Archi or ensure there is an active model.

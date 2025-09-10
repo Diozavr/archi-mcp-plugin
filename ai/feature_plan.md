@@ -10,7 +10,7 @@
 - Локальный сервер, только `127.0.0.1`; порт — как в `Config.resolvePort()`.
 - Операции с EMF/SWT — через `Display.getDefault().syncExec(...)`.
 - Источник правды REST‑контракта — `resources/openapi.json`.
-- Тесты — в `com.archimatetool.mcp/test`.
+- Тесты — в `ru.cinimex.archimatetool.mcp/test`.
 
 - 
 
@@ -63,7 +63,7 @@
 - <критерий 3>
 
 ## Тестирование
-- Юнит‑тесты: <что покрываем> (расположение: `com.archimatetool.mcp/test`).
+- Юнит‑тесты: <что покрываем> (расположение: `ru.cinimex.archimatetool.mcp/test`).
 - Интеграционные/smoke: <что проверяем> (скрипты, ручные шаги).
 
 ## Риски/роллбэк

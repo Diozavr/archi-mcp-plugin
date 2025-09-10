@@ -1,6 +1,6 @@
 ## Building the plugin in Eclipse (PDE)
 
-This document describes how to build and install the `com.archimatetool.mcp` plugin for Archi 5.x using Eclipse PDE.
+This document describes how to build and install the `ru.cinimex.archimatetool.mcp` plugin for Archi 5.x using Eclipse PDE.
 
 ### Requirements
 - **Eclipse**: Eclipse IDE for RCP and RAP Developers (2023‑12 or newer) with PDE.
@@ -9,7 +9,7 @@ This document describes how to build and install the `com.archimatetool.mcp` plu
 
 ### Import the project
 1. File → Import → Existing Projects into Workspace.
-2. Select the `archi-mcp-plugin` directory and import the `com.archimatetool.mcp` project.
+2. Select the `archi-mcp-plugin` directory and import the `ru.cinimex.archimatetool.mcp` project.
 3. Project → Properties → Java Compiler → set **17**.
 
 ### Target Platform (Archi 5.x)
@@ -23,9 +23,9 @@ Verify that dependencies listed in `META-INF/MANIFEST.MF` (Dependencies tab) res
 ### Export the plugin (PDE Export)
 1. Project → Clean.
 2. File → Export → Plug‑in Development → Deployable plug‑ins and fragments.
-3. Tick `com.archimatetool.mcp`.
+3. Tick `ru.cinimex.archimatetool.mcp`.
 4. Destination:
-   - Choose Archive file and a path for `com.archimatetool.mcp_<version>.zip`.
+   - Choose Archive file and a path for `ru.cinimex.archimatetool.mcp_<version>.zip`.
    - Uncheck “Include required plug‑ins” (a full Archi bundle is not needed).
    - “Use class files” — default is fine.
 5. Finish.
@@ -34,7 +34,7 @@ The `build.properties` file already includes the necessary resources (`lib/`, `i
 
 ### Install into Archi
 - Place the produced ZIP into the `dropins` folder of your Archi installation (for example, `C:\\Program Files\\Archi\\dropins`) and restart Archi.
-- Alternatively, unpack the ZIP contents into a subfolder `dropins\\com.archimatetool.mcp`.
+- Alternatively, unpack the ZIP contents into a subfolder `dropins\\ru.cinimex.archimatetool.mcp`.
 
 ### Run/debug from Eclipse (optional)
 1. Run → Run Configurations… → Eclipse Application → New.

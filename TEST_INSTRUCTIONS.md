@@ -28,7 +28,7 @@
 
 ### Smoke-тесты
 ```bash
-cd archi-mcp-plugin/com.archimatetool.mcp/test/smoke
+cd archi-mcp-plugin/ru.cinimex.archimatetool.mcp/test/smoke
 ./run_smoke_py.sh
 ```
 

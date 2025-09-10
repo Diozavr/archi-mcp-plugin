@@ -1,6 +1,6 @@
 ## Сборка плагина в Eclipse (PDE)
 
-Этот документ описывает, как собрать и установить плагин `com.archimatetool.mcp` для Archi 5.x с помощью Eclipse PDE.
+Этот документ описывает, как собрать и установить плагин `ru.cinimex.archimatetool.mcp` для Archi 5.x с помощью Eclipse PDE.
 
 ### Требования
 - **Eclipse**: Eclipse IDE for RCP and RAP Developers (2023‑12 или новее) с PDE.
@@ -9,7 +9,7 @@
 
 ### Импорт проекта
 1. File → Import → Existing Projects into Workspace.
-2. Укажите каталог `archi-mcp-plugin` и импортируйте проект `com.archimatetool.mcp`.
+2. Укажите каталог `archi-mcp-plugin` и импортируйте проект `ru.cinimex.archimatetool.mcp`.
 3. Project → Properties → Java Compiler → выставьте **17**.
 
 ### Target Platform (Archi 5.x)
@@ -23,9 +23,9 @@
 ### Сборка плагина (PDE Export)
 1. Project → Clean.
 2. File → Export → Plug‑in Development → Deployable plug‑ins and fragments.
-3. Отметьте `com.archimatetool.mcp`.
+3. Отметьте `ru.cinimex.archimatetool.mcp`.
 4. Destination:
-   - Выберите Archive file и путь для `com.archimatetool.mcp_<version>.zip`.
+   - Выберите Archive file и путь для `ru.cinimex.archimatetool.mcp_<version>.zip`.
    - Снимите «Include required plug‑ins» (не нужен полный набор Archi).
    - «Use class files» — по умолчанию подходит.
 5. Finish.
@@ -34,7 +34,7 @@
 
 ### Установка в Archi
 - Поместите полученный ZIP в папку `dropins` установленного Archi (например, `C:\Program Files\Archi\dropins`) и перезапустите Archi.
-- Альтернатива: распакуйте содержимое ZIP в подкаталог `dropins\com.archimatetool.mcp`.
+- Альтернатива: распакуйте содержимое ZIP в подкаталог `dropins\ru.cinimex.archimatetool.mcp`.
 
 ### Запуск/отладка из Eclipse (опционально)
 1. Run → Run Configurations… → Eclipse Application → New.
