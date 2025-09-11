@@ -73,6 +73,12 @@ The `ru.cinimex.archimatetool.mcp` folder is an Eclipse project (PDE). See detai
 ## AI Agents
 Code mostly(like 99%) written by Codex and Cursor.
 
+## License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+Copyright 2025 Cinimex
+
 ## Roadmap
 
 Next steps
