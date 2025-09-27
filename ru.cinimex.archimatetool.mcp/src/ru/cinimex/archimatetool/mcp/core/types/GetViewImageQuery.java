@@ -23,13 +23,15 @@ public class GetViewImageQuery {
     public final Integer dpi;
     public final String bg;
     public final Integer margin;
+    public final String responseFormat; // base64 or url
 
-    public GetViewImageQuery(String viewId, String format, Float scale, Integer dpi, String bg, Integer margin) {
+    public GetViewImageQuery(String viewId, String format, Float scale, Integer dpi, String bg, Integer margin, String responseFormat) {
         this.viewId = viewId;
         this.format = format;
         this.scale = scale;
         this.dpi = dpi;
         this.bg = bg;
         this.margin = margin;
+        this.responseFormat = responseFormat;
     }
 }

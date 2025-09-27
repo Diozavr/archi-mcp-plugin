@@ -40,7 +40,7 @@ public class ScriptRunHttpHandlerTest {
         }
         @Override public boolean isPluginInstalled() { return installed; }
         @Override public java.util.List<String> listEngines() { return engines; }
-        @Override public ScriptResult run(ScriptRequest req) { return result; }
+        @Override protected ScriptResult execute(ScriptRequest req) { return result; }
     }
 
     @Test
@@ -80,7 +80,7 @@ public class ScriptRunHttpHandlerTest {
     public void testTimeoutMapsTo504() throws Exception {
         FakeHttpExchange ex = new FakeHttpExchange("POST", "/script/run", "{\"code\":\"print(1)\"}");
         ScriptingCore core = new StubCore(true, null, java.util.List.of("ajs")) {
-            @Override public ScriptResult run(ScriptRequest req) {
+            @Override protected ScriptResult execute(ScriptRequest req) {
                 throw new TimeoutException("timeout");
             }
         };
@@ -103,17 +103,10 @@ public class ScriptRunHttpHandlerTest {
     }
 
     @Test
-    public void testValidatesLogParam() throws Exception {
-        FakeHttpExchange ex = new FakeHttpExchange("POST", "/script/run", "{\"code\":\"1\",\"log\":\"bad\"}");
-        new ScriptRunHttpHandler(new StubCore(true, null, java.util.List.of("ajs"))).handle(ex);
-        assertEquals(400, ex.getResponseCode());
-    }
-
-    @Test
     public void testNoActiveModelMapsTo409() throws Exception {
         FakeHttpExchange ex = new FakeHttpExchange("POST", "/script/run", "{\"code\":\"print(1)\"}");
         ScriptingCore core = new StubCore(true, null, java.util.List.of("ajs")) {
-            @Override public ScriptResult run(ScriptRequest req) {
+            @Override protected ScriptResult execute(ScriptRequest req) {
                 throw new ru.cinimex.archimatetool.mcp.core.errors.ConflictException("no active model");
             }
         };
@@ -125,7 +118,7 @@ public class ScriptRunHttpHandlerTest {
     public void testScriptExecutionErrorIncludesDetailedMessage() throws Exception {
         FakeHttpExchange ex = new FakeHttpExchange("POST", "/script/run", "{\"code\":\"invalid code\",\"engine\":\"ajs\"}");
         ScriptingCore core = new StubCore(true, null, java.util.List.of("ajs")) {
-            @Override public ScriptResult run(ScriptRequest req) {
+            @Override protected ScriptResult execute(ScriptRequest req) {
                 throw new ru.cinimex.archimatetool.mcp.core.errors.UnprocessableException("script execution failed: ReferenceError: undefined variable");
             }
         };

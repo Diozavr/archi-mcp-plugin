@@ -29,10 +29,12 @@ import ru.cinimex.archimatetool.mcp.server.JsonUtil;
 import ru.cinimex.archimatetool.mcp.server.tools.Tool;
 import ru.cinimex.archimatetool.mcp.server.tools.ToolParam;
 import ru.cinimex.archimatetool.mcp.server.tools.ToolRegistry;
+import ru.cinimex.archimatetool.mcp.util.McpLogger;
 import ru.cinimex.archimatetool.mcp.core.errors.BadRequestException;
 import ru.cinimex.archimatetool.mcp.core.errors.ConflictException;
 import ru.cinimex.archimatetool.mcp.core.errors.CoreException;
 import ru.cinimex.archimatetool.mcp.core.errors.NotFoundException;
+import ru.cinimex.archimatetool.mcp.core.errors.NotImplementedException;
 import ru.cinimex.archimatetool.mcp.core.errors.UnprocessableException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.sun.net.httpserver.HttpExchange;
@@ -46,18 +48,61 @@ public class JsonRpcHttpHandler implements HttpHandler {
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
+        // Log incoming request at debug level only
+        if (McpLogger.isDebugEnabled()) {
+            StringBuilder headerDetails = new StringBuilder();
+            exchange.getRequestHeaders().forEach((key, values) -> 
+                headerDetails.append(key).append("=").append(String.join(",", values)).append("; "));
+                
+            McpLogger.logOperationCall("JsonRpcHttpHandler", 
+                "method=" + exchange.getRequestMethod() + 
+                ", uri=" + exchange.getRequestURI() + 
+                ", headers=[" + headerDetails.toString() + "]");
+        }
+            
         if (!"POST".equals(exchange.getRequestMethod())) {
             ResponseUtil.methodNotAllowed(exchange);
             return;
         }
+        
+        // Read request body
+        String requestBody;
+        try {
+            java.io.InputStream inputStream = exchange.getRequestBody();
+            byte[] bodyBytes = inputStream.readAllBytes();
+            requestBody = new String(bodyBytes, java.nio.charset.StandardCharsets.UTF_8);
+            
+            // Log raw request only at debug level
+            if (McpLogger.isDebugEnabled()) {
+                McpLogger.logOperationCall("JsonRpcHttpHandler", "Raw request: " + requestBody);
+            }
+        } catch (Exception ex) {
+            McpLogger.logOperationError("JsonRpcHttpHandler", ex);
+            JsonUtil.writeJson(exchange, 200, error(null, -32700, "failed to read request body: " + ex.getMessage(), null));
+            return;
+        }
+        
         JsonNode root;
         try {
-            root = JacksonJson.readTree(exchange.getRequestBody());
+            root = JacksonJson.mapper().readTree(requestBody);
+            
+            // Log basic request info at info level
+            JsonNode methodNode = root.get("method");
+            if (methodNode != null) {
+                McpLogger.logOperationCall("JsonRPC", methodNode.asText());
+            }
+            
+            // Log parsed JSON only at debug level
+            if (McpLogger.isDebugEnabled()) {
+                McpLogger.logOperationCall("JsonRpcHttpHandler", "Parsed JSON: " + root.toString());
+            }
         } catch (IOException ex) {
+            McpLogger.logOperationError("JsonRpcHttpHandler", ex);
             JsonUtil.writeJson(exchange, 200, error(null, -32700, "parse error", null));
             return;
         }
         if (root.isArray()) {
+            McpLogger.logOperationCall("JsonRPC", "batch request (" + root.size() + " items)");
             List<Object> responses = new ArrayList<>();
             for (JsonNode node : root) {
                 Object resp = process(node);
@@ -66,15 +111,24 @@ public class JsonRpcHttpHandler implements HttpHandler {
                 }
             }
             if (responses.isEmpty()) {
-                exchange.sendResponseHeaders(204, -1);
+                // MCP 2025-06-18: for batches consisting only of notifications/responses return 202 Accepted with no body
+                exchange.sendResponseHeaders(202, -1);
             } else {
                 JsonUtil.writeJson(exchange, 200, responses);
             }
         } else {
             Object resp = process(root);
             if (resp == null) {
-                exchange.sendResponseHeaders(204, -1);
+                if (McpLogger.isDebugEnabled()) {
+                    McpLogger.logOperationOutput("JsonRpcHttpHandler", "empty response");
+                }
+                // MCP 2025-06-18: for notifications return 202 Accepted with no body
+                exchange.sendResponseHeaders(202, -1);
             } else {
+                if (McpLogger.isDebugEnabled()) {
+                    String responseJson = JacksonJson.mapper().writeValueAsString(resp);
+                    McpLogger.logOperationCall("JsonRpcHttpHandler", "Sending response: " + responseJson);
+                }
                 JsonUtil.writeJson(exchange, 200, resp);
             }
         }
@@ -102,7 +156,7 @@ public class JsonRpcHttpHandler implements HttpHandler {
         switch (method) {
             case "initialize":
                 Map<String, Object> result = Map.of(
-                    "protocolVersion", "2024-11-05",
+                    "protocolVersion", "2025-06-18",
                     "serverInfo", Map.of("name", "Archi MCP", "version", "0.1.0"),
                     "capabilities", Map.of(
                         "tools", Map.of("listChanged", Boolean.FALSE),
@@ -144,15 +198,39 @@ public class JsonRpcHttpHandler implements HttpHandler {
                 try {
                     args = validateParams(tool, args);
                 } catch (ParamException pe) {
+                    McpLogger.logOperationError(name, pe);
                     return isNotification ? null
                             : error(idNode, -32602, "invalid params", Map.of("error", pe.getMessage()));
                 }
                 try {
+                    // Log input data at debug level
+                    if (McpLogger.isDebugEnabled()) {
+                        McpLogger.logOperationInput(name, args);
+                    }
+                    
                     Object callResult = tool.getInvoker().invoke(args);
-                    return isNotification ? null : success(idNode, callResult);
+                    
+                    // Log output data at debug level
+                    if (McpLogger.isDebugEnabled()) {
+                        McpLogger.logOperationOutput(name, callResult);
+                    }
+                    
+                    // Wrap result in MCP tool response format
+                    Map<String, Object> mcpResult = Map.of(
+                        "content", java.util.List.of(
+                            Map.of(
+                                "type", "text",
+                                "text", JacksonJson.mapper().writeValueAsString(callResult)
+                            )
+                        )
+                    );
+                    
+                    return isNotification ? null : success(idNode, mcpResult);
                 } catch (CoreException ce) {
+                    McpLogger.logOperationError(name, ce);
                     return isNotification ? null : error(idNode, mapCoreException(ce), ce.getMessage(), null);
                 } catch (Exception ex) {
+                    McpLogger.logOperationError(name, ex);
                     return isNotification ? null : error(idNode, -32603, "internal error", null);
                 }
             }
@@ -165,11 +243,38 @@ public class JsonRpcHttpHandler implements HttpHandler {
                 return isNotification ? null : success(idNode, payload);
             }
             case "logging/setLevel": {
-                // Accept and echo requested level; default to "info"
+                // Accept and configure logging level
                 Object lvl = params.get("level");
                 String level = lvl instanceof String ? (String) lvl : "info";
-                Map<String, Object> payload = Map.of("level", level);
-                return isNotification ? null : success(idNode, payload);
+                
+                // Configure logging levels based on the requested level
+                switch (level.toLowerCase()) {
+                    case "debug":
+                        McpLogger.setInfoEnabled(true);
+                        McpLogger.setDebugEnabled(true);
+                        break;
+                    case "info":
+                        McpLogger.setInfoEnabled(true);
+                        McpLogger.setDebugEnabled(false);
+                        break;
+                    case "warn":
+                    case "error":
+                        McpLogger.setInfoEnabled(false);
+                        McpLogger.setDebugEnabled(false);
+                        break;
+                    default:
+                        // Default to info level
+                        McpLogger.setInfoEnabled(true);
+                        McpLogger.setDebugEnabled(false);
+                        level = "info";
+                        break;
+                }
+                
+                if (McpLogger.isDebugEnabled()) {
+                    McpLogger.logOperationCall("logging/setLevel", "level=" + level);
+                }
+                // Inspector schema does not accept custom fields here; return empty result
+                return isNotification ? null : success(idNode, Collections.emptyMap());
             }
             default:
                 return isNotification ? null : error(idNode, -32601, "method '" + method + "' not found", null);
@@ -244,6 +349,8 @@ public class JsonRpcHttpHandler implements HttpHandler {
             return -32009;
         } else if (ex instanceof UnprocessableException) {
             return -32022;
+        } else if (ex instanceof NotImplementedException) {
+            return -32051;
         }
         return -32603;
     }

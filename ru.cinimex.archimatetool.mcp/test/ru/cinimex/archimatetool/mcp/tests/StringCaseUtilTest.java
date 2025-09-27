@@ -25,9 +25,11 @@ public class StringCaseUtilTest {
 
     @Test
     public void testToCamelCase() {
+        // kebab-case to PascalCase (jArchi API compatibility)
         assertEquals("BusinessActor", StringCaseUtil.toCamelCase("business-actor"));
         assertEquals("DataObject", StringCaseUtil.toCamelCase("data-object"));
         assertEquals("ApplicationComponent", StringCaseUtil.toCamelCase("application-component"));
+        assertEquals("AssignmentRelationship", StringCaseUtil.toCamelCase("assignment-relationship"));
     }
 
     @Test
@@ -39,9 +41,30 @@ public class StringCaseUtilTest {
     }
 
     @Test
-    public void testCustomTypes() {
-        assertEquals("MyCustomType", StringCaseUtil.toCamelCase("my-custom-type"));
+    public void testToCamelCaseEMFCompatibility() {
+        // Already correct PascalCase should remain unchanged (EMF format)
+        assertEquals("BusinessActor", StringCaseUtil.toCamelCase("BusinessActor"));
+        assertEquals("AssignmentRelationship", StringCaseUtil.toCamelCase("AssignmentRelationship"));
         assertEquals("Unknown", StringCaseUtil.toCamelCase("unknown"));
+        assertEquals("MyCustomType", StringCaseUtil.toCamelCase("my-custom-type"));
+    }
+
+    @Test
+    public void testToKebabCase() {
+        assertEquals("business-actor", StringCaseUtil.toKebabCase("BusinessActor"));
+        assertEquals("assignment-relationship", StringCaseUtil.toKebabCase("AssignmentRelationship"));
+        assertEquals("application-component", StringCaseUtil.toKebabCase("ApplicationComponent"));
+        assertEquals("data-object", StringCaseUtil.toKebabCase("DataObject"));
+    }
+
+    @Test
+    public void testToKebabCaseEdgeCases() {
+        assertEquals("", StringCaseUtil.toKebabCase(""));
+        assertNull(StringCaseUtil.toKebabCase(null));
+        assertEquals("a", StringCaseUtil.toKebabCase("A"));
+        assertEquals("ab", StringCaseUtil.toKebabCase("AB")); // Abbreviation without separator
+        assertEquals("abc", StringCaseUtil.toKebabCase("ABC")); // All caps abbreviation
+        assertEquals("html-parser", StringCaseUtil.toKebabCase("HTMLParser")); // Abbreviation + word
     }
 }
 

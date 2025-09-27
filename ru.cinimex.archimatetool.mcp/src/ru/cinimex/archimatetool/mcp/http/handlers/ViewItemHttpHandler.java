@@ -100,7 +100,7 @@ public class ViewItemHttpHandler implements HttpHandler {
             Integer dpi = qp.getInt("dpi", (Integer) null);
             String bg = qp.first("bg");
             Integer margin = qp.getInt("margin", 0);
-            GetViewImageQuery q = new GetViewImageQuery(id, format, scale, dpi, bg, margin);
+            GetViewImageQuery q = new GetViewImageQuery(id, format, scale, dpi, bg, margin, null);
             try {
                 var img = core.getViewImage(q);
                 exchange.getResponseHeaders().set("Content-Type", img.contentType);

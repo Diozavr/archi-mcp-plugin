@@ -33,8 +33,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import ru.cinimex.archimatetool.mcp.core.errors.CoreException;
+import ru.cinimex.archimatetool.mcp.core.errors.NotImplementedException;
 import ru.cinimex.archimatetool.mcp.core.errors.UnprocessableException;
 import ru.cinimex.archimatetool.mcp.core.errors.TimeoutException;
+import ru.cinimex.archimatetool.mcp.core.validation.Validators;
 
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.swt.widgets.Display;
@@ -95,9 +97,39 @@ public class ScriptingCore {
      */
     public ScriptResult run(ScriptRequest req) throws CoreException {
         if (!isPluginInstalled()) {
-            throw new UnsupportedOperationException("scripting plugin is not installed");
+            throw new NotImplementedException("Not Implemented: install a compatible jArchi to enable /script APIs");
+        }
+        ScriptRequest validated = validateRequest(req);
+        return execute(validated);
+    }
+
+    private ScriptRequest validateRequest(ScriptRequest req) {
+        Validators.require(req != null, "request required");
+
+        String code = req.code();
+        Validators.require(code != null && !code.isBlank(), "code is required");
+
+        String engine = req.engine();
+        if (engine == null || engine.isBlank()) {
+            engine = "ajs";
+        }
+        Validators.require(listEngines().contains(engine), "unknown engine");
+
+        Integer timeout = req.timeoutMs();
+        if (timeout != null) {
+            Validators.require(timeout > 0 && timeout <= 60_000, "invalid timeoutMs");
         }
 
+        return new ScriptRequest(
+            engine,
+            code,
+            timeout,
+            req.bindings(),
+            req.modelId()
+        );
+    }
+
+    protected ScriptResult execute(ScriptRequest req) throws CoreException {
         Callable<ScriptResult> task = () -> {
             long start = System.currentTimeMillis();
             File tmp = null;
@@ -112,17 +144,51 @@ public class ScriptingCore {
                     default -> ".ajs";
                 };
                 tmp = File.createTempFile("mcp-script", ext);
-                Files.writeString(tmp.toPath(), req.code(), StandardCharsets.UTF_8);
+                String codeToWrite = req.code();
+                // For AJS scripts, wrap code to rethrow as Java exception so HTTP reflects errors
+                if ("ajs".equals(req.engine())) {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("(function(){\n");
+                    sb.append("  try {\n");
+                    sb.append(codeToWrite);
+                    sb.append("\n  } catch (e) {\n");
+                    sb.append("    var RuntimeException = Java.type('java.lang.RuntimeException');\n");
+                    sb.append("    var System = Java.type('java.lang.System');\n");
+                    sb.append("    var msg = (e && e.message) ? e.message : String(e);\n");
+                    sb.append("    System.err.println('[AJS] ' + msg);\n");
+                    sb.append("    print('[MCP ERROR] ' + msg);\n");
+                    sb.append("    throw new RuntimeException('script error: ' + msg);\n");
+                    sb.append("  }\n");
+                    sb.append("})();\n");
+                    codeToWrite = sb.toString();
+                }
+                Files.writeString(tmp.toPath(), codeToWrite, StandardCharsets.UTF_8);
 
                 System.setOut(new PrintStream(outBuf, true, StandardCharsets.UTF_8));
                 System.setErr(new PrintStream(errBuf, true, StandardCharsets.UTF_8));
 
                 Class<?> runnerClass = Class.forName("com.archimatetool.script.RunArchiScript");
                 Object runner = runnerClass.getConstructor(File.class).newInstance(tmp);
+                // Ensure exceptions are thrown to be captured in stderr/HTTP response
+                try {
+                    var throwField = runnerClass.getDeclaredField("throwExceptions");
+                    throwField.setAccessible(true);
+                    throwField.setBoolean(runner, true);
+                } catch (NoSuchFieldException ignore) {
+                    // Older/newer plugin versions may not have this flag; proceed without
+                }
 
+                Object[] scriptResult = new Object[1]; // Holder for result
                 Display.getDefault().syncExec(() -> {
                     try {
-                        runnerClass.getMethod("run").invoke(runner);
+                        // Пробуем получить результат через getResult() если он есть
+                        Object runResult = runnerClass.getMethod("run").invoke(runner);
+                        try {
+                            scriptResult[0] = runnerClass.getMethod("getResult").invoke(runner);
+                        } catch (NoSuchMethodException e) {
+                            // Если getResult() нет, используем результат run()
+                            scriptResult[0] = runResult;
+                        }
                     } catch (Exception e) {
                         System.err.println("Script execution error: " + e.getMessage());
                         if (e.getCause() != null) {
@@ -136,7 +202,13 @@ public class ScriptingCore {
                 long duration = System.currentTimeMillis() - start;
                 String stdout = truncate(outBuf.toString(StandardCharsets.UTF_8));
                 String stderr = truncate(errBuf.toString(StandardCharsets.UTF_8));
-                return new ScriptResult(true, null,
+                
+                // Добавляем отладочную информацию в stdout скрипта
+                String debugInfo = "[MCP DEBUG] Script result: " + scriptResult[0] + 
+                    " (type: " + (scriptResult[0] != null ? scriptResult[0].getClass().getSimpleName() : "null") + ")\n";
+                stdout = stdout.isEmpty() ? debugInfo : stdout + "\n" + debugInfo;
+                
+                return new ScriptResult(true, scriptResult[0],
                     stdout.isEmpty() ? null : stdout,
                     stderr.isEmpty() ? null : stderr,
                     duration);

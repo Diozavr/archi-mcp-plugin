@@ -19,6 +19,7 @@ import static org.junit.Assert.*;
 
 import java.lang.reflect.Field;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.Test;
@@ -28,6 +29,10 @@ import ru.cinimex.archimatetool.mcp.server.JacksonJson;
 import ru.cinimex.archimatetool.mcp.server.tools.Tool;
 import ru.cinimex.archimatetool.mcp.server.tools.ToolParam;
 import ru.cinimex.archimatetool.mcp.server.tools.ToolRegistry;
+import ru.cinimex.archimatetool.mcp.core.script.ScriptingCore;
+import ru.cinimex.archimatetool.mcp.core.script.ScriptRequest;
+import ru.cinimex.archimatetool.mcp.core.script.ScriptResult;
+import ru.cinimex.archimatetool.mcp.core.errors.CoreException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 /**
@@ -38,6 +43,56 @@ import com.fasterxml.jackson.databind.JsonNode;
  * implementations are not exercised.
  */
 public class JsonRpcHttpHandlerTest {
+
+    static class StubScriptingCore extends ScriptingCore {
+        boolean installed;
+        List<String> engines;
+        Map<String, Object> docs;
+        ScriptResult nextResult;
+        ScriptRequest lastRequest;
+
+        StubScriptingCore(boolean installed, List<String> engines, Map<String, Object> docs, ScriptResult nextResult) {
+            this.installed = installed;
+            this.engines = engines != null ? engines : List.of();
+            this.docs = docs;
+            this.nextResult = nextResult;
+        }
+
+        @Override
+        public boolean isPluginInstalled() {
+            return installed;
+        }
+
+        @Override
+        public List<String> listEngines() {
+            return engines;
+        }
+
+        @Override
+        public Map<String, Object> getAgentDocumentation() {
+            return docs != null ? docs : super.getAgentDocumentation();
+        }
+
+        @Override
+        protected ScriptResult execute(ScriptRequest req) throws CoreException {
+            this.lastRequest = req;
+            return nextResult != null ? nextResult : new ScriptResult(true, null, null, null, 0);
+        }
+    }
+
+    private Object replaceScriptingCore(ScriptingCore replacement) throws Exception {
+        Field field = ToolRegistry.class.getDeclaredField("scriptingCore");
+        field.setAccessible(true);
+        Object original = field.get(null);
+        field.set(null, replacement);
+        return original;
+    }
+
+    private void restoreScriptingCore(Object original) throws Exception {
+        Field field = ToolRegistry.class.getDeclaredField("scriptingCore");
+        field.setAccessible(true);
+        field.set(null, original);
+    }
 
     @Test
     public void testRejectsNonPost() throws Exception {
@@ -67,11 +122,11 @@ public class JsonRpcHttpHandlerTest {
     }
 
     @Test
-    public void testNotificationNoContent() throws Exception {
+    public void testNotificationAccepted() throws Exception {
         String req = "{\"jsonrpc\":\"2.0\",\"method\":\"tools/call\",\"params\":{\"name\":\"status\",\"args\":{}}}";
         FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
         new JsonRpcHttpHandler().handle(ex);
-        assertEquals(204, ex.getResponseCode());
+        assertEquals(202, ex.getResponseCode());
         assertEquals("", ex.getResponseString());
     }
 
@@ -90,13 +145,13 @@ public class JsonRpcHttpHandlerTest {
     }
 
     @Test
-    public void testBatchAllNotifications() throws Exception {
+    public void testBatchAllNotificationsAccepted() throws Exception {
         String req = "[" +
             "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}," +
             "{\"jsonrpc\":\"2.0\",\"method\":\"tools/call\",\"params\":{\"name\":\"status\",\"args\":{}}}]";
         FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
         new JsonRpcHttpHandler().handle(ex);
-        assertEquals(204, ex.getResponseCode());
+        assertEquals(202, ex.getResponseCode());
         assertEquals("", ex.getResponseString());
     }
 
@@ -107,15 +162,15 @@ public class JsonRpcHttpHandlerTest {
         new JsonRpcHttpHandler().handle(ex);
         assertEquals(200, ex.getResponseCode());
         JsonNode root = JacksonJson.mapper().readTree(ex.getResponseString());
-        assertEquals("2024-11-05", root.get("result").get("protocolVersion").asText());
+        assertEquals("2025-06-18", root.get("result").get("protocolVersion").asText());
     }
 
     @Test
-    public void testNotificationsInitialized() throws Exception {
+    public void testNotificationsInitializedAccepted() throws Exception {
         String req = "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}";
         FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
         new JsonRpcHttpHandler().handle(ex);
-        assertEquals(204, ex.getResponseCode());
+        assertEquals(202, ex.getResponseCode());
     }
 
     @Test
@@ -167,8 +222,139 @@ public class JsonRpcHttpHandlerTest {
         new JsonRpcHttpHandler().handle(ex);
         assertEquals(200, ex.getResponseCode());
         JsonNode root = JacksonJson.mapper().readTree(ex.getResponseString());
-        assertTrue(root.get("result").get("ok").asBoolean());
+        // Check MCP tool response format
+        JsonNode content = root.get("result").get("content");
+        assertNotNull(content);
+        assertTrue(content.isArray());
+        assertTrue(content.size() > 0);
+        JsonNode firstContent = content.get(0);
+        assertEquals("text", firstContent.get("type").asText());
+        
+        // Parse the actual tool result from the text field
+        JsonNode toolResult = JacksonJson.mapper().readTree(firstContent.get("text").asText());
+        assertTrue(toolResult.get("ok").asBoolean());
         assertEquals(8, root.get("id").asInt());
+    }
+
+    @Test
+    public void testListScriptEnginesWhenNotInstalled() throws Exception {
+        StubScriptingCore stub = new StubScriptingCore(false, List.of(), null, null);
+        Object original = replaceScriptingCore(stub);
+        try {
+            String req = "{\"jsonrpc\":\"2.0\",\"id\":9,\"method\":\"tools/call\",\"params\":{\"name\":\"list_script_engines\",\"arguments\":{}}}";
+            FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
+            new JsonRpcHttpHandler().handle(ex);
+            assertEquals(200, ex.getResponseCode());
+            JsonNode root = JacksonJson.mapper().readTree(ex.getResponseString());
+            // Check MCP tool response format
+            JsonNode content = root.get("result").get("content");
+            assertNotNull(content);
+            assertTrue(content.isArray());
+            assertTrue(content.size() > 0);
+            JsonNode firstContent = content.get(0);
+            assertEquals("text", firstContent.get("type").asText());
+            
+            // Parse the actual tool result from the text field
+            JsonNode toolResult = JacksonJson.mapper().readTree(firstContent.get("text").asText());
+            assertFalse(toolResult.get("installed").asBoolean());
+            assertEquals(0, toolResult.get("engines").size());
+            assertNull(toolResult.get("documentation"));
+        } finally {
+            restoreScriptingCore(original);
+        }
+    }
+
+    @Test
+    public void testListScriptEnginesWhenInstalled() throws Exception {
+        Map<String, Object> docs = Map.of("guide", "doc");
+        StubScriptingCore stub = new StubScriptingCore(true, List.of("ajs", "groovy"), docs, null);
+        Object original = replaceScriptingCore(stub);
+        try {
+            String req = "{\"jsonrpc\":\"2.0\",\"id\":10,\"method\":\"tools/call\",\"params\":{\"name\":\"list_script_engines\",\"arguments\":{}}}";
+            FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
+            new JsonRpcHttpHandler().handle(ex);
+            JsonNode root = JacksonJson.mapper().readTree(ex.getResponseString());
+            // Check MCP tool response format
+            JsonNode content = root.get("result").get("content");
+            assertNotNull(content);
+            assertTrue(content.isArray());
+            assertTrue(content.size() > 0);
+            JsonNode firstContent = content.get(0);
+            assertEquals("text", firstContent.get("type").asText());
+            
+            // Parse the actual tool result from the text field
+            JsonNode toolResult = JacksonJson.mapper().readTree(firstContent.get("text").asText());
+            assertTrue(toolResult.get("installed").asBoolean());
+            assertEquals(2, toolResult.get("engines").size());
+            assertTrue(toolResult.get("documentation").isObject());
+        } finally {
+            restoreScriptingCore(original);
+        }
+    }
+
+    @Test
+    public void testRunScriptSuccess() throws Exception {
+        ScriptResult res = new ScriptResult(true, "answer", "out", "err", 42);
+        StubScriptingCore stub = new StubScriptingCore(true, List.of("ajs"), Map.of(), res);
+        Object original = replaceScriptingCore(stub);
+        try {
+            String req = "{\"jsonrpc\":\"2.0\",\"id\":11,\"method\":\"tools/call\",\"params\":{\"name\":\"run_script\",\"arguments\":{\"code\":\"return 1\",\"engine\":\"ajs\",\"timeout_ms\":1000,\"bindings\":{\"foo\":\"bar\"},\"log\":\"stdout\"}}}";
+            FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
+            new JsonRpcHttpHandler().handle(ex);
+            JsonNode root = JacksonJson.mapper().readTree(ex.getResponseString());
+            // Check MCP tool response format
+            JsonNode content = root.get("result").get("content");
+            assertNotNull(content);
+            assertTrue(content.isArray());
+            assertTrue(content.size() > 0);
+            JsonNode firstContent = content.get(0);
+            assertEquals("text", firstContent.get("type").asText());
+            
+            // Parse the actual tool result from the text field
+            JsonNode toolResult = JacksonJson.mapper().readTree(firstContent.get("text").asText());
+            assertTrue(toolResult.get("ok").asBoolean());
+            assertEquals("answer", toolResult.get("result").asText());
+            assertEquals("out", toolResult.get("stdout").asText());
+            assertEquals("err", toolResult.get("stderr").asText());
+            assertEquals(42, toolResult.get("durationMs").asInt());
+            assertNotNull(stub.lastRequest);
+            assertEquals(Integer.valueOf(1000), stub.lastRequest.timeoutMs());
+        } finally {
+            restoreScriptingCore(original);
+        }
+    }
+
+    @Test
+    public void testRunScriptValidatesMissingCode() throws Exception {
+        StubScriptingCore stub = new StubScriptingCore(true, List.of("ajs"), Map.of(), new ScriptResult(true, null, null, null, 0));
+        Object original = replaceScriptingCore(stub);
+        try {
+            String req = "{\"jsonrpc\":\"2.0\",\"id\":12,\"method\":\"tools/call\",\"params\":{\"name\":\"run_script\",\"arguments\":{}}}";
+            FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
+            new JsonRpcHttpHandler().handle(ex);
+            JsonNode root = JacksonJson.mapper().readTree(ex.getResponseString());
+            assertEquals(-32602, root.get("error").get("code").asInt());
+            assertEquals("invalid params", root.get("error").get("message").asText());
+            assertEquals("missing required param 'code'", root.get("error").get("data").get("error").asText());
+        } finally {
+            restoreScriptingCore(original);
+        }
+    }
+
+    @Test
+    public void testRunScriptWhenPluginMissing() throws Exception {
+        StubScriptingCore stub = new StubScriptingCore(false, List.of(), null, null);
+        Object original = replaceScriptingCore(stub);
+        try {
+            String req = "{\"jsonrpc\":\"2.0\",\"id\":13,\"method\":\"tools/call\",\"params\":{\"name\":\"run_script\",\"arguments\":{\"code\":\"print(1)\"}}}";
+            FakeHttpExchange ex = new FakeHttpExchange("POST", "/mcp", req);
+            new JsonRpcHttpHandler().handle(ex);
+            JsonNode root = JacksonJson.mapper().readTree(ex.getResponseString());
+            assertEquals(-32051, root.get("error").get("code").asInt());
+            assertEquals("Not Implemented: install a compatible jArchi to enable /script APIs", root.get("error").get("message").asText());
+        } finally {
+            restoreScriptingCore(original);
+        }
     }
 }
 

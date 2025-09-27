@@ -17,35 +17,41 @@ package ru.cinimex.archimatetool.mcp;
 
 import java.io.IOException;
 
-import org.eclipse.core.runtime.ILog;
+import org.eclipse.core.commands.Command;
+import org.eclipse.core.commands.State;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.commands.ICommandService;
-import org.eclipse.core.commands.Command;
-import org.eclipse.core.commands.State;
-import org.osgi.framework.BundleActivator;
+import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;
 
+import ru.cinimex.archimatetool.mcp.preferences.MCPPreferences;
 import ru.cinimex.archimatetool.mcp.server.HttpServerRunner;
+import ru.cinimex.archimatetool.mcp.util.McpLogger;
 
-public class Activator implements BundleActivator {
+/**
+ * The activator class controls the plug-in life cycle
+ */
+public class Activator extends AbstractUIPlugin {
 
-    public static final String PLUGIN_ID = "ru.cinimex.archimatetool.mcp";
+    // The plug-in ID
+    public static final String PLUGIN_ID = "ru.cinimex.archimatetool.mcp"; //$NON-NLS-1$
 
+    // The shared instance
     private static Activator instance;
+
     private HttpServerRunner serverRunner;
-    private ILog log;
 
-    public static Activator getDefault() {
-        return instance;
-    }
-
-    public ILog getLog() {
-        return log;
+    /**
+     * The constructor
+     */
+    public Activator() {
     }
 
     public synchronized void startServer() throws IOException {
+        McpLogger.logOperationCall("Plugin Start Server");
+        
         if (serverRunner == null) {
             serverRunner = new HttpServerRunner();
         }
@@ -56,9 +62,15 @@ public class Activator implements BundleActivator {
     }
 
     public synchronized void stopServer() {
+        McpLogger.logOperationCall("Plugin Stop Server");
+        
         if (serverRunner != null && serverRunner.isRunning()) {
             serverRunner.stop();
             refreshToggleState();
+            McpLogger.logOperationOutput("Plugin Stop Server", 
+                java.util.Map.of("status", "server stopped via plugin"));
+        } else {
+            McpLogger.logOperationWarning("Plugin Stop Server", "Server not running or not initialized");
         }
     }
 
@@ -89,9 +101,10 @@ public class Activator implements BundleActivator {
             return;
         }
         display.asyncExec(() -> {
-            ICommandService cs = PlatformUI.getWorkbench().getService(ICommandService.class);
-            if (cs != null) {
-                try {
+            try {
+                ICommandService cs = PlatformUI.getWorkbench().getService(ICommandService.class);
+                if (cs != null) {
+                    // Update the toggle state
                     Command cmd = cs.getCommand("ru.cinimex.archimatetool.mcp.commands.toggleServer");
                     if (cmd != null) {
                         State state = cmd.getState("org.eclipse.ui.commands.toggleState");
@@ -99,28 +112,57 @@ public class Activator implements BundleActivator {
                             state.setValue(Boolean.valueOf(isServerRunning()));
                         }
                     }
-                } catch (Exception ignore) {
-                    // Best-effort state sync; ignore if command not available yet
+                    // Refresh UI elements
+                    cs.refreshElements("ru.cinimex.archimatetool.mcp.commands.toggleServer", null);
                 }
-                cs.refreshElements("ru.cinimex.archimatetool.mcp.commands.toggleServer", null);
+            } catch (Exception e) {
+                // Ignore errors during UI refresh
             }
         });
+    }
+
+    /**
+     * Returns the shared instance
+     *
+     * @return the shared instance
+     */
+    public static Activator getDefault() {
+        return instance;
     }
 
     @Override
     public void start(BundleContext context) throws Exception {
         instance = this;
-        log = Platform.getLog(context.getBundle());
+        
+        // Initialize logging settings from preferences
+        initializeLoggingSettings();
+        
         startServer();
     }
 
     @Override
     public void stop(BundleContext context) throws Exception {
+        McpLogger.logOperationCall("Plugin Shutdown");
+        
         if (serverRunner != null && serverRunner.isRunning()) {
             serverRunner.stop();
-            serverRunner = null;
+            McpLogger.logOperationOutput("Plugin Shutdown", 
+                java.util.Map.of("status", "server stopped during plugin shutdown"));
         }
+        
         instance = null;
+        super.stop(context);
+    }
+
+    private void initializeLoggingSettings() {
+        // Load logging settings from preferences and apply them
+        boolean infoEnabled = MCPPreferences.isInfoLoggingEnabled();
+        boolean debugEnabled = MCPPreferences.isDebugLoggingEnabled();
+        
+        McpLogger.setInfoEnabled(infoEnabled);
+        McpLogger.setDebugEnabled(debugEnabled);
+        
+        McpLogger.logOperationCall("Plugin Startup", 
+            "Logging initialized: info=" + infoEnabled + ", debug=" + debugEnabled);
     }
 }
-

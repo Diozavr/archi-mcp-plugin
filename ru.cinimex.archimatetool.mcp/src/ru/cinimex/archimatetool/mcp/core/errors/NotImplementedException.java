@@ -13,15 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package ru.cinimex.archimatetool.mcp.core.script;
+package ru.cinimex.archimatetool.mcp.core.errors;
 
-import java.util.Map;
-
-/** Parameters for a script execution request. */
-public record ScriptRequest(
-    String engine,
-    String code,
-    Integer timeoutMs,
-    Map<String, Object> bindings,
-    String modelId
-) {}
+/** Not implemented (HTTP 501) */
+public class NotImplementedException extends CoreException {
+    public NotImplementedException(String message) {
+        super(message);
+    }
+}

@@ -33,6 +33,7 @@ import ru.cinimex.archimatetool.mcp.core.types.UpdateElementsCmd;
 import ru.cinimex.archimatetool.mcp.http.QueryParams;
 import ru.cinimex.archimatetool.mcp.http.ResponseUtil;
 import ru.cinimex.archimatetool.mcp.json.JsonReader;
+import ru.cinimex.archimatetool.mcp.util.McpLogger;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -64,6 +65,8 @@ public class ElementsHttpHandler implements HttpHandler {
     }
 
     private void handleGet(HttpExchange exchange) throws IOException {
+        McpLogger.logApiOperationCall("GET /elements");
+        
         QueryParams qp = QueryParams.from(exchange);
         List<String> ids = qp.all("ids");
         String include = qp.first("include");
@@ -78,20 +81,33 @@ public class ElementsHttpHandler implements HttpHandler {
             }
         }
         boolean includeElements = qp.getBool("includeElements", false);
+        
+        Map<String, Object> inputParams = Map.of(
+            "ids", ids,
+            "includeRelations", includeRelations,
+            "includeElements", includeElements
+        );
+        McpLogger.logApiOperationInput("GET /elements", inputParams);
+        
         List<Map<String, Object>> res = new ArrayList<>();
         for (String id : ids) {
             GetElementQuery q = new GetElementQuery(id, includeRelations, includeElements);
             try {
                 res.add(core.getElement(q));
             } catch (CoreException ex) {
+                McpLogger.logApiOperationError("GET /elements", ex);
                 ResponseUtil.handleCoreException(exchange, ex);
                 return;
             }
         }
+        
+        McpLogger.logApiOperationOutput("GET /elements", Map.of("resultCount", res.size()));
         ResponseUtil.ok(exchange, res);
     }
 
     private void handlePost(HttpExchange exchange) throws IOException {
+        McpLogger.logApiOperationCall("POST /elements");
+        
         JsonReader jr = JsonReader.fromExchange(exchange);
         List<CreateElementItem> items = new ArrayList<>();
         if (jr.isArrayRoot()) {
@@ -101,11 +117,16 @@ public class ElementsHttpHandler implements HttpHandler {
                         it.optString("folderId"), readMap(it.optObject("properties")), it.optString("documentation")));
             }
         }
+        
+        McpLogger.logApiOperationInput("POST /elements", Map.of("itemCount", items.size()));
+        
         CreateElementsCmd cmd = new CreateElementsCmd(items);
         try {
             var dto = core.createElements(cmd);
+            McpLogger.logApiOperationOutput("POST /elements", Map.of("createdCount", dto.size()));
             ResponseUtil.created(exchange, dto);
         } catch (CoreException ex) {
+            McpLogger.logApiOperationError("POST /elements", ex);
             ResponseUtil.handleCoreException(exchange, ex);
         }
     }

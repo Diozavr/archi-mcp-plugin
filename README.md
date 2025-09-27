@@ -70,6 +70,15 @@ The plugin adds a dedicated "MCP" toolbar with an "MCP Server" toggle. Clicking 
 The `ru.cinimex.archimatetool.mcp` folder is an Eclipse project (PDE). See detailed steps in [BUILD.md](BUILD.md).
 
 
+## 🧪 Testing
+
+The plugin includes comprehensive smoke tests for AI agents:
+
+- **[SMOKE_TEST.md](SMOKE_TEST.md)** - Complete testing guide with AI agent prompts and step-by-step instructions
+
+## Trouble Shooting
+Run Archi with `-consoleLog` to see MCP plugin logs.
+
 ## AI Agents
 Code mostly(like 99%) written by Codex and Cursor.
 
@@ -84,7 +93,7 @@ Copyright 2025 Cinimex
 Next steps
 
 * [] API Key authentication, configuration in Archi settings
-* [] Headless mode support for the plugin
+* [] Archi Headless mode support for the plugin
 * [] Build instructions for the plugin
 * [] Full build automation
 * [] Prompt improvements for diagram operations

@@ -74,6 +74,12 @@ def main() -> int:
     run_step("GET /status", lambda: http_request("GET", base, "/status"))
     run_step("GET /openapi.json", lambda: http_request("GET", base, "/openapi.json"))
     run_step("GET /types", lambda: http_request("GET", base, "/types"))
+    script_status, script_body = run_step("GET /script/engines", lambda: http_request("GET", base, "/script/engines"))
+    if script_status == 200 and isinstance(script_body, dict) and script_body.get("installed"):
+        run_step(
+            "POST /script/run (noop)",
+            lambda: http_request("POST", base, "/script/run", json_body={"code": "return 1"})
+        )
 
     code, _ = http_request("GET", base, "/folders")
     if code == 409:

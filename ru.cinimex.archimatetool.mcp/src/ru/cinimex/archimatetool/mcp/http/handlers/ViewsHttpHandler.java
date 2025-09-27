@@ -22,6 +22,7 @@ import ru.cinimex.archimatetool.mcp.core.types.CreateViewCmd;
 import ru.cinimex.archimatetool.mcp.core.views.ViewsCore;
 import ru.cinimex.archimatetool.mcp.http.ResponseUtil;
 import ru.cinimex.archimatetool.mcp.json.JsonReader;
+import ru.cinimex.archimatetool.mcp.util.McpLogger;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
@@ -33,20 +34,30 @@ public class ViewsHttpHandler implements HttpHandler {
     public void handle(HttpExchange exchange) throws IOException {
         String method = exchange.getRequestMethod();
         if ("GET".equalsIgnoreCase(method)) {
+            McpLogger.logApiOperationCall("GET /views");
             try {
                 var views = core.listViews();
+                McpLogger.logApiOperationOutput("GET /views", 
+                    java.util.Map.of("viewCount", views.size()));
                 ResponseUtil.ok(exchange, views);
             } catch (CoreException ex) {
+                McpLogger.logApiOperationError("GET /views", ex);
                 ResponseUtil.handleCoreException(exchange, ex);
             }
             return;
         } else if ("POST".equalsIgnoreCase(method)) {
+            McpLogger.logApiOperationCall("POST /views");
             JsonReader jr = JsonReader.fromExchange(exchange);
             CreateViewCmd cmd = new CreateViewCmd(jr.optString("type"), jr.optString("name"));
+            McpLogger.logApiOperationInput("POST /views", 
+                java.util.Map.of("type", cmd.type, "name", cmd.name));
             try {
                 var dto = core.createView(cmd);
+                McpLogger.logApiOperationOutput("POST /views", 
+                    java.util.Map.of("createdViewId", dto.get("id")));
                 ResponseUtil.created(exchange, dto);
             } catch (CoreException ex) {
+                McpLogger.logApiOperationError("POST /views", ex);
                 ResponseUtil.handleCoreException(exchange, ex);
             }
             return;

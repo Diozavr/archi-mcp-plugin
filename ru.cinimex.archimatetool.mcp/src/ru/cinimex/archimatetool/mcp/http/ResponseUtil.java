@@ -79,6 +79,8 @@ public final class ResponseUtil {
             json(exchange, 409, Map.of("error", ex.getMessage()));
         } else if (ex instanceof UnprocessableException) {
             unprocessable(exchange, ex.getMessage());
+        } else if (ex instanceof NotImplementedException) {
+            notImplemented(exchange, ex.getMessage());
         } else if (ex instanceof TimeoutException) {
             json(exchange, 504, Map.of("error", ex.getMessage()));
         } else {

@@ -36,6 +36,9 @@ public final class MCPPreferences {
     public static final String NODE = "ru.cinimex.archimatetool.mcp";
     public static final String PREF_HOST = "host";
     public static final String PREF_PORT = "port";
+    public static final String PREF_LOG_LEVEL = "logLevel";
+    public static final String PREF_LOG_INFO = "logInfo";
+    public static final String PREF_LOG_DEBUG = "logDebug";
 
     private static final Map<String, String> FALLBACK = new HashMap<>();
     private static final Map<String, String> FALLBACK_DEFAULTS = new HashMap<>();
@@ -138,5 +141,73 @@ public final class MCPPreferences {
         }
         String val = FALLBACK_DEFAULTS.get(PREF_PORT);
         return val != null ? Integer.parseInt(val) : Config.DEFAULT_PORT;
+    }
+
+    /** Set the log level preference. */
+    public static void setLogLevel(String logLevel) {
+        IEclipsePreferences node = instanceNode();
+        if (node != null) {
+            node.put(PREF_LOG_LEVEL, logLevel);
+            try {
+                node.flush();
+            } catch (BackingStoreException ignore) {}
+        } else {
+            FALLBACK.put(PREF_LOG_LEVEL, logLevel);
+        }
+    }
+
+    /** Retrieve the log level preference or default. */
+    public static String getLogLevel() {
+        IEclipsePreferences node = instanceNode();
+        if (node != null) {
+            return node.get(PREF_LOG_LEVEL, "info");
+        }
+        return FALLBACK.getOrDefault(PREF_LOG_LEVEL, "info");
+    }
+
+    /** Set the info logging enabled preference. */
+    public static void setInfoLoggingEnabled(boolean enabled) {
+        IEclipsePreferences node = instanceNode();
+        if (node != null) {
+            node.putBoolean(PREF_LOG_INFO, enabled);
+            try {
+                node.flush();
+            } catch (BackingStoreException ignore) {}
+        } else {
+            FALLBACK.put(PREF_LOG_INFO, Boolean.toString(enabled));
+        }
+    }
+
+    /** Retrieve the info logging enabled preference. */
+    public static boolean isInfoLoggingEnabled() {
+        IEclipsePreferences node = instanceNode();
+        if (node != null) {
+            return node.getBoolean(PREF_LOG_INFO, true);
+        }
+        String val = FALLBACK.get(PREF_LOG_INFO);
+        return val != null ? Boolean.parseBoolean(val) : true;
+    }
+
+    /** Set the debug logging enabled preference. */
+    public static void setDebugLoggingEnabled(boolean enabled) {
+        IEclipsePreferences node = instanceNode();
+        if (node != null) {
+            node.putBoolean(PREF_LOG_DEBUG, enabled);
+            try {
+                node.flush();
+            } catch (BackingStoreException ignore) {}
+        } else {
+            FALLBACK.put(PREF_LOG_DEBUG, Boolean.toString(enabled));
+        }
+    }
+
+    /** Retrieve the debug logging enabled preference. */
+    public static boolean isDebugLoggingEnabled() {
+        IEclipsePreferences node = instanceNode();
+        if (node != null) {
+            return node.getBoolean(PREF_LOG_DEBUG, false);
+        }
+        String val = FALLBACK.get(PREF_LOG_DEBUG);
+        return val != null ? Boolean.parseBoolean(val) : false;
     }
 }

@@ -24,11 +24,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import ru.cinimex.archimatetool.mcp.core.elements.ElementsCore;
 import ru.cinimex.archimatetool.mcp.core.errors.BadRequestException;
 import ru.cinimex.archimatetool.mcp.core.folders.FoldersCore;
 import ru.cinimex.archimatetool.mcp.core.model.ModelCore;
 import ru.cinimex.archimatetool.mcp.core.relations.RelationsCore;
+import ru.cinimex.archimatetool.mcp.core.script.ScriptRequest;
+import ru.cinimex.archimatetool.mcp.core.script.ScriptResult;
+import ru.cinimex.archimatetool.mcp.core.script.ScriptingCore;
 import ru.cinimex.archimatetool.mcp.core.search.SearchCore;
 import ru.cinimex.archimatetool.mcp.core.types.*;
 import ru.cinimex.archimatetool.mcp.core.views.ViewsCore;
@@ -38,12 +44,14 @@ import ru.cinimex.archimatetool.mcp.core.views.ViewsCore;
  */
 public class ToolRegistry {
     private static final Map<String, Tool> TOOLS = new LinkedHashMap<>();
+    private static final ObjectMapper objectMapper = new ObjectMapper();
     private static final ElementsCore elementsCore = new ElementsCore();
     private static final RelationsCore relationsCore = new RelationsCore();
     private static final ViewsCore viewsCore = new ViewsCore();
     private static final FoldersCore foldersCore = new FoldersCore();
     private static final SearchCore searchCore = new SearchCore();
     private static final ModelCore modelCore = new ModelCore();
+    private static ScriptingCore scriptingCore = new ScriptingCore();
 
     static {
         // status
@@ -52,6 +60,57 @@ public class ToolRegistry {
             "Service status",
             Collections.emptyList(),
             params -> Map.of("ok", Boolean.TRUE, "service", "Archi MCP")
+        ));
+        // list_script_engines
+        register(new Tool(
+            "list_script_engines",
+            "List available scripting engines",
+            Collections.emptyList(),
+            params -> {
+                Map<String, Object> res = new LinkedHashMap<>();
+                boolean installed = scriptingCore.isPluginInstalled();
+                res.put("installed", installed);
+                res.put("engines", scriptingCore.listEngines());
+                if (installed) {
+                    res.put("documentation", scriptingCore.getAgentDocumentation());
+                }
+                return res;
+            }
+        ));
+        // run_script
+        register(new Tool(
+            "run_script",
+            "Run a jArchi script",
+            Arrays.asList(
+                new ToolParam("engine", "string", false, "Script engine id (default: ajs)", null),
+                new ToolParam("code", "string", true, "Script source code", null),
+                new ToolParam("timeout_ms", "integer", false, "Timeout in milliseconds (max 60000)", null),
+                new ToolParam("bindings", "object", false, "Variable bindings map", null),
+                new ToolParam("model_id", "string", false, "Target model id", null)
+            ),
+            params -> {
+                Object bindingsObj = params.get("bindings");
+                @SuppressWarnings("unchecked") Map<String, Object> bindings = null;
+                if (bindingsObj instanceof Map) {
+                    bindings = (Map<String, Object>) bindingsObj;
+                } else if (bindingsObj != null) {
+                    throw new BadRequestException("bindings must be an object");
+                }
+                ScriptResult result = scriptingCore.run(new ScriptRequest(
+                    (String) params.get("engine"),
+                    (String) params.get("code"),
+                    asInt(params.get("timeout_ms")),
+                    bindings,
+                    (String) params.get("model_id")
+                ));
+                Map<String, Object> resp = new LinkedHashMap<>();
+                resp.put("ok", result.ok());
+                if (result.result() != null) resp.put("result", result.result());
+                if (result.stdout() != null) resp.put("stdout", result.stdout());
+                if (result.stderr() != null) resp.put("stderr", result.stderr());
+                resp.put("durationMs", result.durationMs());
+                return resp;
+            }
         ));
         // list_views
         register(new Tool(
@@ -116,7 +175,8 @@ public class ToolRegistry {
                 new ToolParam("scale", "number", false, "Scale factor", 1.0),
                 new ToolParam("dpi", "integer", false, "DPI for png", null),
                 new ToolParam("bg", "string", false, "Background color", null),
-                new ToolParam("margin", "integer", false, "Margin in pixels", 0)
+                new ToolParam("margin", "integer", false, "Margin in pixels", 0),
+                new ToolParam("response_format", "string", false, "base64 or url", "base64")
             ),
             params -> {
                 Double scaleD = params.get("scale") instanceof Number ? ((Number) params.get("scale")).doubleValue() : null;
@@ -127,15 +187,46 @@ public class ToolRegistry {
                     scaleD == null ? null : scaleD.floatValue(),
                     (Integer) params.get("dpi"),
                     (String) params.get("bg"),
-                    marginI
+                    marginI,
+                    (String) params.get("response_format")
                 );
                 ViewsCore.ImageData img = viewsCore.getViewImage(q);
-                String b64 = Base64.getEncoder().encodeToString(img.data);
-                return Map.of(
-                    "data_base64", b64,
-                    "content_type", img.contentType,
-                    "length", img.data.length
-                );
+                
+                // Строим URL для прямого скачивания
+                StringBuilder urlBuilder = new StringBuilder("http://127.0.0.1:8765/views/")
+                    .append(q.viewId).append("/image");
+                
+                // Добавляем параметры запроса
+                ArrayList<String> queryParams = new ArrayList<>();
+                if (q.format != null) queryParams.add("format=" + q.format);
+                if (q.scale != null) queryParams.add("scale=" + q.scale);
+                if (q.dpi != null) queryParams.add("dpi=" + q.dpi);
+                if (q.bg != null) queryParams.add("bg=" + q.bg);
+                if (q.margin != null) queryParams.add("margin=" + q.margin);
+                
+                if (!queryParams.isEmpty()) {
+                    urlBuilder.append("?").append(String.join("&", queryParams));
+                }
+                
+                String downloadUrl = urlBuilder.toString();
+                
+                // Выбираем формат ответа
+                if ("url".equals(q.responseFormat)) {
+                    return Map.of(
+                        "download_url", downloadUrl,
+                        "content_type", img.contentType,
+                        "length", img.data.length
+                    );
+                } else {
+                    // По умолчанию "base64"
+                    String b64 = Base64.getEncoder().encodeToString(img.data);
+                    return Map.of(
+                        "data_base64", b64,
+                        "content_type", img.contentType,
+                        "length", img.data.length,
+                        "download_url", downloadUrl
+                    );
+                }
             }
         ));
         // get_elements
@@ -167,8 +258,8 @@ public class ToolRegistry {
                 new ToolParam("items", "array", true, "Items to create", null)
             ),
             params -> {
-                @SuppressWarnings("unchecked") List<Map<String, Object>> items =
-                    (List<Map<String, Object>>) params.get("items");
+                List<?> rawItems = (List<?>) params.get("items");
+                List<Map<String, Object>> items = parseItemsArray(rawItems);
                 validateArraySize(items, 50);
                 List<CreateElementItem> list = new ArrayList<>();
                 for (Map<String, Object> i : items) {
@@ -194,8 +285,8 @@ public class ToolRegistry {
                 new ToolParam("items", "array", true, "Items to update", null)
             ),
             params -> {
-                @SuppressWarnings("unchecked") List<Map<String, Object>> items =
-                    (List<Map<String, Object>>) params.get("items");
+                List<?> rawItems = (List<?>) params.get("items");
+                List<Map<String, Object>> items = parseItemsArray(rawItems);
                 validateArraySize(items, 50);
                 List<UpdateElementItem> list = new ArrayList<>();
                 for (Map<String, Object> i : items) {
@@ -254,8 +345,8 @@ public class ToolRegistry {
                 new ToolParam("items", "array", true, "Items to create", null)
             ),
             params -> {
-                @SuppressWarnings("unchecked") List<Map<String, Object>> items =
-                    (List<Map<String, Object>>) params.get("items");
+                List<?> rawItems = (List<?>) params.get("items");
+                List<Map<String, Object>> items = parseItemsArray(rawItems);
                 validateArraySize(items, 50);
                 List<CreateRelationItem> list = new ArrayList<>();
                 for (Map<String, Object> i : items) {
@@ -282,8 +373,8 @@ public class ToolRegistry {
                 new ToolParam("items", "array", true, "Items to update", null)
             ),
             params -> {
-                @SuppressWarnings("unchecked") List<Map<String, Object>> items =
-                    (List<Map<String, Object>>) params.get("items");
+                List<?> rawItems = (List<?>) params.get("items");
+                List<Map<String, Object>> items = parseItemsArray(rawItems);
                 validateArraySize(items, 50);
                 List<UpdateRelationItem> list = new ArrayList<>();
                 for (Map<String, Object> i : items) {
@@ -326,8 +417,8 @@ public class ToolRegistry {
             ),
             params -> {
                 String viewId = (String) params.get("view_id");
-                @SuppressWarnings("unchecked") List<Map<String, Object>> items =
-                    (List<Map<String, Object>>) params.get("items");
+                List<?> rawItems = (List<?>) params.get("items");
+                List<Map<String, Object>> items = parseItemsArray(rawItems);
                 validateArraySize(items, 50);
                 List<AddElementToViewItem> list = new ArrayList<>();
                 for (Map<String, Object> i : items) {
@@ -358,8 +449,8 @@ public class ToolRegistry {
             ),
             params -> {
                 String viewId = (String) params.get("view_id");
-                @SuppressWarnings("unchecked") List<Map<String, Object>> items =
-                    (List<Map<String, Object>>) params.get("items");
+                List<?> rawItems = (List<?>) params.get("items");
+                List<Map<String, Object>> items = parseItemsArray(rawItems);
                 validateArraySize(items, 50);
                 List<AddRelationToViewItem> list = new ArrayList<>();
                 for (Map<String, Object> i : items) {
@@ -385,8 +476,8 @@ public class ToolRegistry {
             ),
             params -> {
                 String viewId = (String) params.get("view_id");
-                @SuppressWarnings("unchecked") List<Map<String, Object>> items =
-                    (List<Map<String, Object>>) params.get("items");
+                List<?> rawItems = (List<?>) params.get("items");
+                List<Map<String, Object>> items = parseItemsArray(rawItems);
                 validateArraySize(items, 50);
                 List<UpdateViewObjectBoundsItem> list = new ArrayList<>();
                 for (Map<String, Object> i : items) {
@@ -412,8 +503,8 @@ public class ToolRegistry {
             ),
             params -> {
                 String viewId = (String) params.get("view_id");
-                @SuppressWarnings("unchecked") List<Map<String, Object>> items =
-                    (List<Map<String, Object>>) params.get("items");
+                List<?> rawItems = (List<?>) params.get("items");
+                List<Map<String, Object>> items = parseItemsArray(rawItems);
                 validateArraySize(items, 50);
                 List<MoveViewObjectItem> list = new ArrayList<>();
                 for (Map<String, Object> i : items) {
@@ -521,10 +612,12 @@ public class ToolRegistry {
                 var pkg = com.archimatetool.model.IArchimatePackage.eINSTANCE;
                 var elementTypes = pkg.getEClassifiers().stream()
                     .filter(c -> c instanceof org.eclipse.emf.ecore.EClass && pkg.getArchimateElement().isSuperTypeOf((org.eclipse.emf.ecore.EClass) c))
-                    .map(c -> ((org.eclipse.emf.ecore.EClass) c).getName()).collect(Collectors.toList());
+                    .map(c -> ((org.eclipse.emf.ecore.EClass) c).getName())
+                    .collect(Collectors.toList());
                 var relationTypes = pkg.getEClassifiers().stream()
                     .filter(c -> c instanceof org.eclipse.emf.ecore.EClass && pkg.getArchimateRelationship().isSuperTypeOf((org.eclipse.emf.ecore.EClass) c))
-                    .map(c -> ((org.eclipse.emf.ecore.EClass) c).getName()).collect(Collectors.toList());
+                    .map(c -> ((org.eclipse.emf.ecore.EClass) c).getName())
+                    .collect(Collectors.toList());
                 return Map.of(
                     "elementTypes", elementTypes,
                     "relationTypes", relationTypes,
@@ -568,6 +661,32 @@ public class ToolRegistry {
             out.add(t.toMap());
         }
         return out;
+    }
+
+    /**
+     * Parse JSON strings in items array to Map objects.
+     * Handles both String JSON items and already parsed Map items.
+     */
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> parseItemsArray(List<?> items) {
+        if (items == null) return null;
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Object item : items) {
+            if (item instanceof String) {
+                try {
+                    Map<String, Object> parsed = objectMapper.readValue((String) item, 
+                        new TypeReference<Map<String, Object>>() {});
+                    result.add(parsed);
+                } catch (Exception e) {
+                    throw new BadRequestException("Invalid JSON in items array: " + e.getMessage());
+                }
+            } else if (item instanceof Map) {
+                result.add((Map<String, Object>) item);
+            } else {
+                throw new BadRequestException("Items must be JSON strings or objects");
+            }
+        }
+        return result;
     }
 
     private static void validateArraySize(List<?> list, int max) {
