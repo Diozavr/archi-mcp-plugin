@@ -1,8 +1,6 @@
 # Archi MCP Plugin
 
-Предоставляет локальный HTTP API поверх текущей активной модели [Archi](https://archimatetool.com/). Служит бэкендом для MCP‑сервера [TykTechnologies/api-to-mcp](https://github.com/TykTechnologies/api-to-mcp) и может использоваться напрямую через REST (только на localhost).
-
-![image](docs/image.png)
+Предоставляет локальный MCP сервер и REST API поверх текущей активной модели [Archi](https://archimatetool.com/). 
 
 
 ## Возможности плагина
@@ -42,14 +40,8 @@
 ```json
 {
   "mcpServers": {
-    "archi-mcp": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@tyk-technologies/api-to-mcp@latest",
-        "--spec",
-        "http://127.0.0.1:8765/openapi.json"
-      ]
+       "archi-mcp": {
+      "url": "http://127.0.0.1:8765/mcp",
     }
   }
 }

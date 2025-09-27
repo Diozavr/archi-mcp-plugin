@@ -1,9 +1,6 @@
 # Archi MCP Plugin
 
-Provides a local HTTP API on top of the currently active [Archi](https://archimatetool.com/) model. Acts as a backend for the MCP server [TykTechnologies/api-to-mcp](https://github.com/TykTechnologies/api-to-mcp) and can be used directly via REST (localhost only).
-
-![image](docs/image.png)
-
+Provides a local MCP and REST API on top of the currently active [Archi](https://archimatetool.com/) model.
 
 ## Plugin capabilities
 Enables LLMs to fetch model information, modify objects and diagrams, and execute scripts via the REST API.
@@ -44,14 +41,8 @@ Example configuration for Cursor
 ```json
 {
   "mcpServers": {
-    "archi-mcp": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@tyk-technologies/api-to-mcp@latest",
-        "--spec",
-        "http://127.0.0.1:8765/openapi.json"
-      ]
+       "archi-mcp": {
+      "url": "http://127.0.0.1:8765/mcp",
     }
   }
 }
