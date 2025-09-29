@@ -247,7 +247,7 @@ For a thorough verification of all features:
 - ✅ "Output types": always `"BusinessActor"` (EMF PascalCase)
 - ✅ "JSON arrays": strings are parsed correctly
 
-## 🎯 Final Report
+## 🎯 Final Report Template
 
 ```
 [SMOKE] FINAL SUMMARY
@@ -283,7 +283,3 @@ Status: SMOKE PASSED 🎉
 - On creation errors → use existing objects
 - On view errors → skip view operations
 - On cleanup errors → log and continue
-
----
-
-**This single file covers all testing scenarios of the MCP API for Archi — from quick checks to full testing.**

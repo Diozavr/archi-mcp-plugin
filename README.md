@@ -1,3 +1,5 @@
+![Archi MCP Plugin Logo](logo.png)
+
 # Archi MCP Plugin
 
 Provides a local MCP and REST API on top of the currently active [Archi](https://archimatetool.com/) model.
@@ -65,7 +67,7 @@ The `ru.cinimex.archimatetool.mcp` folder is an Eclipse project (PDE). See detai
 
 The plugin includes comprehensive smoke tests for AI agents:
 
-- **[SMOKE_TEST.md](SMOKE_TEST.md)** - Complete testing guide with AI agent prompts and step-by-step instructions
+- **[AGENT_SMOKE_TEST.md](AGENT_SMOKE_TEST.md)** - Complete testing guide with AI agent prompts and step-by-step instructions
 
 ## Trouble Shooting
 Run Archi with `-consoleLog` to see MCP plugin logs.

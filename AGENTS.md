@@ -56,18 +56,3 @@ Note on localization parity: this document has both English and Russian versions
   view object operations, `/views/{id}/image`, `/search`, error scenarios, and cleanup.
   Before running, open the test model `testdata/Archisurance.archimate` in Archi or ensure there is an active model.
 
-## MCP Server via npx (universal way)
-- Preferred way to run MCP: `npx @tyk-technologies/api-to-mcp@latest --spec http://127.0.0.1:8765/openapi.json`
-- Automatically generates MCP tools from the OpenAPI spec
-- Does not require the built‑in JSON‑RPC endpoint `/mcp`
-- Configuration in `.cursor/mcp.json`:
-  ```json
-  {
-    "mcpServers": {
-      "archi-api": {
-        "command": "npx",
-        "args": ["-y", "@tyk-technologies/api-to-mcp@latest", "--spec", "http://127.0.0.1:8765/openapi.json"]
-      }
-    }
-  }
-  ```

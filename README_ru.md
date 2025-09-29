@@ -1,3 +1,5 @@
+![Archi MCP Plugin Logo](logo.png)
+
 # Archi MCP Plugin
 
 Предоставляет локальный MCP сервер и REST API поверх текущей активной модели [Archi](https://archimatetool.com/). 
@@ -65,7 +67,7 @@
 
 Плагин включает расширенные smoke‑тесты для AI‑агентов:
 
-- **[SMOKE_TEST.md](SMOKE_TEST.md)** — полный гайд по тестированию с промптами для агентов и пошаговыми инструкциями
+- **[AGENT_SMOKE_TEST.md](AGENT_SMOKE_TEST.md)** — полный гайд по тестированию с промптами для агентов и пошаговыми инструкциями
 
 ## Trouble Shooting
 
