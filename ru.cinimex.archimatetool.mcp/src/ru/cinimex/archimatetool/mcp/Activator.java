@@ -95,6 +95,13 @@ public class Activator extends AbstractUIPlugin {
         return -1;
     }
 
+    public synchronized String getBoundHost() {
+        if (serverRunner != null) {
+            return serverRunner.getHost();
+        }
+        return null;
+    }
+
     private void refreshToggleState() {
         Display display = Display.getDefault();
         if (display == null) {

@@ -33,9 +33,9 @@ To install, place the .zip file into the Archi `dropins` directory.
 
 The plugin starts automatically with Archi.
 
-You can change the HTTP server port in Archi → Preferences → MCP.
+You can change the HTTP server host and port in Archi → Preferences → MCP. Warning: changing host may be unsafe because there is no auth or encryption.
 
-Note: the API is available **without authentication** at http://localhost:8765/ (local connections only).
+Note: the API is available **without authentication**. Default bind is http://127.0.0.1:8765/ (local connections only). You may override host/port via System Properties `archi.mcp.host`/`archi.mcp.port`, Env `ARCHI_MCP_HOST`/`ARCHI_MCP_PORT`, or Preferences.
 
 ### MCP
 Example configuration for Cursor
@@ -52,8 +52,8 @@ Example configuration for Cursor
 
 
 ## Archi settings
-- You can change the HTTP server host and port in Archi → Preferences → MCP. Warning, changing host might be unsafe, because no auth and encryption is used!
-- Port precedence: Env `ARCHI_MCP_PORT` → Preferences → Default (`8765`).
+- You can change the HTTP server host and port in Archi → Preferences → MCP. Warning: changing host might be unsafe, because no auth and encryption is used!
+- Precedence: System Property → Env → Preferences → Default. Keys: `archi.mcp.host`, `ARCHI_MCP_HOST`, `archi.mcp.port`, `ARCHI_MCP_PORT`. Defaults: `127.0.0.1`, `8765`.
 
 ### Toolbar (MCP Server)
 The plugin adds a dedicated "MCP" toolbar with an "MCP Server" toggle. Clicking toggles the server on/off without restarting Archi. 

@@ -39,7 +39,7 @@
 ### Запуск/отладка из Eclipse (опционально)
 1. Run → Run Configurations… → Eclipse Application → New.
 2. Выберите «Run an application: `com.archimatetool.editor.product`» (если доступен продукт Archi в Target Platform).
-3. VM arguments (опционально): `-Darchi.mcp.port=8765`.
+3. VM arguments (опционально): `-Darchi.mcp.host=127.0.0.1 -Darchi.mcp.port=8765`.
 4. Run. В Archi появится тулбар «MCP» — переключатель «MCP Server».
 
 ### Быстрые проверки
@@ -48,7 +48,7 @@
 - Если установлен jArchi, доступны REST‑маршруты скриптов.
 
 ### Примечания
-- Порт настраивается: System Property `archi.mcp.port`, Env `ARCHI_MCP_PORT` или Preferences (Archi → Preferences → MCP). Приоритет: System Property → Env → Preferences → Default (`8765`).
+- Хост и порт настраиваются: System Properties `archi.mcp.host`/`archi.mcp.port`, Env `ARCHI_MCP_HOST`/`ARCHI_MCP_PORT` или Preferences (Archi → Preferences → MCP). Приоритет: System Property → Env → Preferences → Default (`127.0.0.1:8765`).
 - Зависимость `com.archimatetool.script` помечена как optional — без jArchi скриптовый функционал будет отключён, остальное работает.
 - Требуется Java 17 (`Bundle-RequiredExecutionEnvironment: JavaSE-17`).
 

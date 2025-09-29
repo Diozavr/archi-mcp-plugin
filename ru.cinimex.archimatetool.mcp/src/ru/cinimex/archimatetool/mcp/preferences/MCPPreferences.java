@@ -96,6 +96,28 @@ public final class MCPPreferences {
         return val != null ? Integer.parseInt(val) : Config.DEFAULT_PORT;
     }
 
+    /** Set the persisted host preference. */
+    public static void setHost(String host) {
+        IEclipsePreferences node = instanceNode();
+        if (node != null) {
+            node.put(PREF_HOST, host);
+            try {
+                node.flush();
+            } catch (BackingStoreException ignore) {}
+        } else {
+            FALLBACK.put(PREF_HOST, host);
+        }
+    }
+
+    /** Retrieve the persisted host preference or the default if unset. */
+    public static String getHost() {
+        IEclipsePreferences node = instanceNode();
+        if (node != null) {
+            return node.get(PREF_HOST, Config.DEFAULT_HOST);
+        }
+        return FALLBACK.getOrDefault(PREF_HOST, Config.DEFAULT_HOST);
+    }
+
     /** Set default host and port values. */
     public static void setDefaultHostAndPort(String host, int port) {
         IEclipsePreferences node = defaultNode();

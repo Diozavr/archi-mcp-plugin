@@ -10,10 +10,10 @@ Note on localization parity: this document has both English and Russian versions
 
 ## Configuration
 - You can start/stop the MCP server with a button on the dedicated “MCP” toolbar; the icon reflects the state.
-- The MCP HTTP server port can be set via System Property `archi.mcp.port`, environment variable `ARCHI_MCP_PORT`, or Preferences (Archi → Preferences → MCP). Precedence: System Property → Env → Preferences → Default (`8765`).
+- The MCP HTTP server host and port can be set via System Properties `archi.mcp.host`, `archi.mcp.port`, environment variables `ARCHI_MCP_HOST`, `ARCHI_MCP_PORT`, or Preferences (Archi → Preferences → MCP). Precedence: System Property → Env → Preferences → Default (`127.0.0.1:8765`).
 
 ## API invariants
-- Bind only to `127.0.0.1:8765` (local).
+- Default bind is `127.0.0.1:8765` (local). You may override host/port at your own risk; the service has no authentication.
 - If there is no active model — HTTP 409 and `{"error":"no active model"}`.
 - Path compatibility:
   - New: `/views/{id}/content`, `/views/{id}/add-element` (POST), sub-resources like `/views/{id}/objects/...`.
@@ -41,7 +41,7 @@ Note on localization parity: this document has both English and Russian versions
 
 ## Quality/evolution
 - JSON is processed with Jackson.
-- Do not widen the network surface (0.0.0.0, authentication) without prior agreement: the service is intended to be local.
+- Be careful when widening the network surface (e.g. `0.0.0.0`): the service is intended to be local and ships without authentication.
   For the REST contract the source of truth is `openapi.json`.
 
 ## Quick checks

@@ -81,7 +81,8 @@ public class ToggleServerHandler extends AbstractHandler implements IElementUpda
         element.setChecked(running);
         element.setText("MCP");
         int port = running ? act.getBoundPort() : Config.resolvePort();
-        element.setTooltip("Start/Stop MCP Server (127.0.0.1:" + port + ")");
+        String host = running ? act.getBoundHost() : Config.resolveHost();
+        element.setTooltip("Start/Stop MCP Server (" + host + ":" + port + ")");
     }
 }
 

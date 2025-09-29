@@ -24,7 +24,7 @@ import ru.cinimex.archimatetool.mcp.util.McpLogger;
 import com.sun.net.httpserver.HttpServer;
 
 public class HttpServerRunner {
-    private static final String HOST = Config.DEFAULT_HOST;
+    private String host = null;
 
     private HttpServer server;
     private int port = -1;
@@ -37,12 +37,13 @@ public class HttpServerRunner {
             throw new IllegalStateException("Server already running");
         }
         int p = Config.resolvePort();
+        host = Config.resolveHost();
         
         McpLogger.logOperationInput("HTTP Server Start", 
-            java.util.Map.of("host", HOST, "port", p));
+            java.util.Map.of("host", host, "port", p));
         
         try {
-            server = HttpServer.create(new InetSocketAddress(HOST, p), 0);
+            server = HttpServer.create(new InetSocketAddress(host, p), 0);
             port = p;
         } catch (IOException ex) {
             McpLogger.logOperationError("HTTP Server Start", ex);
@@ -54,8 +55,8 @@ public class HttpServerRunner {
         server.start();
         
         McpLogger.logOperationOutput("HTTP Server Start", 
-            java.util.Map.of("status", "started", "host", HOST, "port", port));
-        System.out.println("[Archi MCP] Listening at http://" + HOST + ":" + port);
+            java.util.Map.of("status", "started", "host", host, "port", port));
+        System.out.println("[Archi MCP] Listening at http://" + host + ":" + port);
     }
 
     public synchronized void stop() {
@@ -68,7 +69,7 @@ public class HttpServerRunner {
         
         int currentPort = port;
         McpLogger.logOperationInput("HTTP Server Stop", 
-            java.util.Map.of("host", HOST, "port", currentPort));
+            java.util.Map.of("host", host, "port", currentPort));
         
         try {
             server.stop(0);
@@ -76,8 +77,8 @@ public class HttpServerRunner {
             port = -1;
             
             McpLogger.logOperationOutput("HTTP Server Stop", 
-                java.util.Map.of("status", "stopped", "host", HOST, "port", currentPort));
-            System.out.println("[Archi MCP] HTTP Server stopped at " + HOST + ":" + currentPort);
+                java.util.Map.of("status", "stopped", "host", host, "port", currentPort));
+            System.out.println("[Archi MCP] HTTP Server stopped at " + host + ":" + currentPort);
         } catch (Exception ex) {
             McpLogger.logOperationError("HTTP Server Stop", ex);
             throw ex;
@@ -91,7 +92,7 @@ public class HttpServerRunner {
             stop();
             start();
             McpLogger.logOperationOutput("HTTP Server Restart", 
-                java.util.Map.of("status", "restarted", "host", HOST, "port", port));
+                java.util.Map.of("status", "restarted", "host", host, "port", port));
         } catch (Exception ex) {
             McpLogger.logOperationError("HTTP Server Restart", ex);
             throw ex;
@@ -104,6 +105,10 @@ public class HttpServerRunner {
 
     public synchronized int getPort() {
         return port;
+    }
+
+    public synchronized String getHost() {
+        return host;
     }
 }
 

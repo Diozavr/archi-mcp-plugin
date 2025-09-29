@@ -46,6 +46,22 @@ public final class Config {
         return MCPPreferences.getPort();
     }
 
+    /**
+     * Resolve effective host with precedence:
+     * System Property (archi.mcp.host) → Env (ARCHI_MCP_HOST) → Preferences → Default (127.0.0.1).
+     */
+    public static String resolveHost() {
+        String sp = System.getProperty("archi.mcp.host");
+        if (sp != null && !sp.isEmpty()) {
+            return sp;
+        }
+        String ev = getenv.apply("ARCHI_MCP_HOST");
+        if (ev != null && !ev.isEmpty()) {
+            return ev;
+        }
+        return MCPPreferences.getHost();
+    }
+
     private static java.util.function.Function<String, String> getenv = System::getenv;
 
     public static void setGetenv(java.util.function.Function<String, String> f) {

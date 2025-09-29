@@ -127,6 +127,7 @@ public class MCPPreferencePage extends FieldEditorPreferencePage implements IWor
                 hostWarningLabel.setText("⚠ Warning: non-localhost values may expose the server");
                 hostWarningLabel.setForeground(parent.getDisplay().getSystemColor(SWT.COLOR_DARK_RED));
             }
+            maybeRestart();
         };
         hostText.addModifyListener(hostListener);
         hostListener.modifyText(null);
@@ -136,6 +137,7 @@ public class MCPPreferencePage extends FieldEditorPreferencePage implements IWor
         portEditor.setValidRange(1024, 65535);
         portEditor.getTextControl(parent).setToolTipText(precedenceTip);
         addField(portEditor);
+        portEditor.getTextControl(parent).addModifyListener(e -> maybeRestart());
 
         // Effective port info (spans both columns)
         effectivePortLabel = new Label(parent, SWT.NONE);
@@ -254,11 +256,14 @@ public class MCPPreferencePage extends FieldEditorPreferencePage implements IWor
         Activator act = Activator.getDefault();
         if (act != null) {
             int oldPort = act.getBoundPort();
+            String oldHost = act.getBoundHost();
             int newPort = getPreferenceStore().getInt(MCPPreferences.PREF_PORT);
-            if (oldPort != -1 && oldPort != newPort) {
+            String newHost = getPreferenceStore().getString(MCPPreferences.PREF_HOST);
+            boolean needRestart = oldPort != -1 && (oldPort != newPort || (oldHost == null ? newHost != null : !oldHost.equals(newHost)));
+            if (needRestart) {
                 try {
                     act.restartServer();
-                    McpLogger.logOperationCall("Preferences", "Server restarted due to port change: " + oldPort + " → " + newPort);
+                    McpLogger.logOperationCall("Preferences", "Server restarted due to host/port change");
                 } catch (Exception ex) {
                     act.getLog().log(new Status(IStatus.ERROR, Activator.PLUGIN_ID, ex.getMessage(), ex));
                 }

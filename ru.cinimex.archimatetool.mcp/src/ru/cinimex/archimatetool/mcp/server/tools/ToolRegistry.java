@@ -193,7 +193,10 @@ public class ToolRegistry {
                 ViewsCore.ImageData img = viewsCore.getViewImage(q);
                 
                 // Строим URL для прямого скачивания
-                StringBuilder urlBuilder = new StringBuilder("http://127.0.0.1:8765/views/")
+                String host = ru.cinimex.archimatetool.mcp.Config.resolveHost();
+                int port = ru.cinimex.archimatetool.mcp.Config.resolvePort();
+                StringBuilder urlBuilder = new StringBuilder("http://")
+                    .append(host).append(":").append(port).append("/views/")
                     .append(q.viewId).append("/image");
                 
                 // Добавляем параметры запроса

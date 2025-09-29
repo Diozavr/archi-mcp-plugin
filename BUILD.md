@@ -39,7 +39,7 @@ The `build.properties` file already includes the necessary resources (`lib/`, `i
 ### Run/debug from Eclipse (optional)
 1. Run → Run Configurations… → Eclipse Application → New.
 2. Select “Run an application: `com.archimatetool.editor.product`” (if the Archi product is available in the Target Platform).
-3. VM arguments (optional): `-Darchi.mcp.port=8765`.
+3. VM arguments (optional): `-Darchi.mcp.host=127.0.0.1 -Darchi.mcp.port=8765`.
 4. Run. In Archi you should see the “MCP” toolbar with the “MCP Server” toggle.
 
 ### Quick checks
@@ -48,7 +48,7 @@ The `build.properties` file already includes the necessary resources (`lib/`, `i
 - If jArchi is installed, script REST routes will be available.
 
 ### Notes
-- The port is configurable: System Property `archi.mcp.port`, Env `ARCHI_MCP_PORT`, or Preferences (Archi → Preferences → MCP). Precedence: System Property → Env → Preferences → Default (`8765`).
+- Host and port are configurable: System Properties `archi.mcp.host`/`archi.mcp.port`, Env `ARCHI_MCP_HOST`/`ARCHI_MCP_PORT`, or Preferences (Archi → Preferences → MCP). Precedence: System Property → Env → Preferences → Default (`127.0.0.1:8765`).
 - Dependency `com.archimatetool.script` is optional — without jArchi, scripting features are disabled, everything else works.
 - Requires Java 17 (`Bundle-RequiredExecutionEnvironment: JavaSE-17`).
 
